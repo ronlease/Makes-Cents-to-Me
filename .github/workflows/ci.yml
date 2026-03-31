@@ -255,7 +255,7 @@ jobs:
           cp src/environments/environment.template.ts src/environments/environment.prod.ts
 
       - name: Run unit tests
-        run: npx ng test --watch=false --browsers=ChromeHeadless --code-coverage
+        run: npx ng test --watch=false
 
       - name: Upload coverage
         if: always()

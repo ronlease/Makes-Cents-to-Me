@@ -83,7 +83,7 @@ const DATE_FORMAT_PRESETS = [
         <mat-step label="Upload CSV" [completed]="csvPreview() !== null">
           <div class="step-content">
             @if (!csvPreview()) {
-              <div class="upload-zone" (click)="fileInput.click()" (dragover)="onDragOver($event)" (drop)="onFileDrop($event)">
+              <div class="upload-zone" tabindex="0" role="button" (click)="fileInput.click()" (keydown.enter)="fileInput.click()" (dragover)="onDragOver($event)" (drop)="onFileDrop($event)">
                 <mat-icon class="upload-icon">cloud_upload</mat-icon>
                 <p>Click or drag and drop a CSV file here</p>
                 <input #fileInput type="file" accept=".csv" hidden (change)="onFileSelected($event)" />
@@ -349,7 +349,6 @@ export class ImportComponent implements OnInit {
   protected readonly isProcessing = signal(false);
   protected readonly isUploading = signal(false);
   protected readonly uploadedFile = signal<File | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected readonly mappingForm: FormGroup = new FormGroup({});
   protected readonly savedProfile = signal<ImportProfile | null>(null);
 
