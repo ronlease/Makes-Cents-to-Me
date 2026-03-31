@@ -21,10 +21,24 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'categories',
+    loadComponent: () =>
+      import('./features/categories/category-list.component').then(
+        m => m.CategoryListComponent
+      ),
+  },
+  {
     path: 'accounts/:accountId/import',
     loadComponent: () =>
       import('./features/import/import.component').then(
         m => m.ImportComponent
+      ),
+  },
+  {
+    path: 'review',
+    loadComponent: () =>
+      import('./features/review/review-queue.component').then(
+        m => m.ReviewQueueComponent
       ),
   },
 ];

@@ -211,8 +211,12 @@ const DATE_FORMAT_PRESETS = [
                 <mat-icon class="success-icon">check_circle</mat-icon>
                 <h2>Import Complete</h2>
                 <p>Transactions created: <strong>{{ importResult()!.transactionsCreated }}</strong></p>
+                <p>Duplicates skipped: <strong>{{ importResult()!.duplicatesSkipped }}</strong></p>
                 <p>Rows skipped: <strong>{{ importResult()!.rowsSkipped }}</strong></p>
-                <button mat-flat-button [routerLink]="backRoute()">Back to Accounts</button>
+                <div class="step-actions">
+                  <button mat-button [routerLink]="backRoute()">Back to Institutions</button>
+                  <button mat-flat-button routerLink="/review">Review Transactions</button>
+                </div>
               </div>
             } @else {
               <div class="step-actions">

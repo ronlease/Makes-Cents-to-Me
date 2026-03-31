@@ -1,11 +1,12 @@
 using MakesCentsToMe.Api.Common;
+using MakesCentsToMe.Api.Infrastructure.Claude;
 using MakesCentsToMe.Api.Infrastructure.Data;
 using MakesCentsToMe.Api.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace MakesCentsToMe.Api.Features.Import;
 
-public class ImportService(AppDbContext dbContext) : IImportService
+public class ImportService(AppDbContext dbContext, IClaudeAnalysisService claudeAnalysisService) : IImportService
 {
     private const int PreviewRowCount = 5;
 
@@ -56,7 +57,7 @@ public class ImportService(AppDbContext dbContext) : IImportService
 
         if (lines.Count < 2)
         {
-            return ApiResponse<ProcessImportResponse>.Ok(new ProcessImportResponse(0, 0));
+            return ApiResponse<ProcessImportResponse>.Ok(new ProcessImportResponse(0, 0, 0));
         }
 
         var headers = ParseCsvLine(lines[0]);
@@ -132,7 +133,7 @@ public class ImportService(AppDbContext dbContext) : IImportService
                 AccountId = accountId,
                 Amount = amount,
                 Balance = balance,
-                Category = string.IsNullOrWhiteSpace(category) ? null : category,
+                RawCategory = string.IsNullOrWhiteSpace(category) ? null : category,
                 CheckNumber = string.IsNullOrWhiteSpace(checkNumber) ? null : checkNumber,
                 Date = DateTime.SpecifyKind(date, DateTimeKind.Utc),
                 Description = description,
@@ -147,16 +148,66 @@ public class ImportService(AppDbContext dbContext) : IImportService
             transactions.Add(transaction);
         }
 
+        // Dedup: check for existing transactions with matching composite key
+        var duplicatesSkipped = 0;
+        if (transactions.Count > 0)
+        {
+            var minDate = transactions.Min(t => t.Date);
+            var maxDate = transactions.Max(t => t.Date);
+
+            var existingKeys = await dbContext.Transactions
+                .Where(t => t.AccountId == accountId && t.Date >= minDate && t.Date <= maxDate)
+                .Select(t => new { t.Date, t.Description, t.Amount })
+                .ToListAsync();
+
+            var existingCounts = new Dictionary<(DateTime, string, decimal), int>();
+            foreach (var key in existingKeys)
+            {
+                var compositeKey = (key.Date, key.Description, key.Amount);
+                existingCounts[compositeKey] = existingCounts.GetValueOrDefault(compositeKey) + 1;
+            }
+
+            var deduplicatedTransactions = new List<Transaction>();
+            foreach (var transaction in transactions)
+            {
+                var compositeKey = (transaction.Date, transaction.Description, transaction.Amount);
+                if (existingCounts.TryGetValue(compositeKey, out var count) && count > 0)
+                {
+                    existingCounts[compositeKey] = count - 1;
+                    duplicatesSkipped++;
+                }
+                else
+                {
+                    deduplicatedTransactions.Add(transaction);
+                }
+            }
+
+            transactions = deduplicatedTransactions;
+        }
+
         if (!profile.BalanceProvided && transactions.Count > 0)
         {
             ComputeBalances(transactions, request.OpeningBalance, request.ClosingBalance);
         }
 
+        // Set status to Pending for Claude analysis
+        foreach (var transaction in transactions)
+        {
+            transaction.Status = TransactionStatus.Pending;
+        }
+
         dbContext.Transactions.AddRange(transactions);
         await dbContext.SaveChangesAsync();
 
+        // Claude analysis: analyze and update status
+        if (transactions.Count > 0)
+        {
+            await claudeAnalysisService.AnalyzeTransactionsAsync(transactions);
+            await dbContext.SaveChangesAsync();
+        }
+
         return ApiResponse<ProcessImportResponse>.Ok(
-            new ProcessImportResponse(transactions.Count, skippedCount));
+            new ProcessImportResponse(duplicatesSkipped, skippedCount, transactions.Count));
     }
 
     public async Task<ApiResponse<ImportProfileResponse>> SaveProfileAsync(Guid accountId, SaveImportProfileRequest request)

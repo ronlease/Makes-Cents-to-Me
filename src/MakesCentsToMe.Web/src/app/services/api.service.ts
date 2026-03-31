@@ -24,6 +24,21 @@ export interface AccountUpdateRequest {
   name: string;
 }
 
+export interface Category {
+  id: string;
+  isDefault: boolean;
+  name: string;
+  transactionCount: number;
+}
+
+export interface CategoryCreateRequest {
+  name: string;
+}
+
+export interface CategoryUpdateRequest {
+  name: string;
+}
+
 export interface ApiResponse<T> {
   data: T;
   errors: string[];
@@ -63,6 +78,7 @@ export interface ImportProcessRequest {
 }
 
 export interface ImportResult {
+  duplicatesSkipped: number;
   rowsSkipped: number;
   transactionsCreated: number;
 }
@@ -79,6 +95,28 @@ export interface InstitutionCreateRequest {
 
 export interface InstitutionUpdateRequest {
   name: string;
+}
+
+export interface OverrideTransactionRequest {
+  categoryId: string | null;
+  normalizedVendor: string;
+}
+
+export interface ReviewTransaction {
+  accountName: string;
+  amount: number;
+  categoryId: string | null;
+  confidence: number | null;
+  date: string;
+  description: string;
+  id: string;
+  institutionName: string;
+  normalizedVendor: string | null;
+  rawCategory: string | null;
+  status: string;
+  suggestedCategory: string | null;
+  suggestedCategoryId: string | null;
+  suggestedNormalizedVendor: string | null;
 }
 
 export interface UploadPreviewResponse {
@@ -111,6 +149,29 @@ export class ApiService {
   updateAccount(institutionId: string, accountId: string, request: AccountUpdateRequest): Observable<Account> {
     return this.http
       .put<ApiResponse<Account>>(`${this.baseUrl}/api/v1/institutions/${institutionId}/accounts/${accountId}`, request)
+      .pipe(map(response => response.data));
+  }
+
+  // Category endpoints
+  createCategory(request: CategoryCreateRequest): Observable<Category> {
+    return this.http
+      .post<ApiResponse<Category>>(`${this.baseUrl}/api/v1/categories`, request)
+      .pipe(map(response => response.data));
+  }
+
+  deleteCategory(categoryId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/api/v1/categories/${categoryId}`);
+  }
+
+  getCategories(): Observable<Category[]> {
+    return this.http
+      .get<ApiResponse<Category[]>>(`${this.baseUrl}/api/v1/categories`)
+      .pipe(map(response => response.data ?? []));
+  }
+
+  updateCategory(categoryId: string, request: CategoryUpdateRequest): Observable<Category> {
+    return this.http
+      .put<ApiResponse<Category>>(`${this.baseUrl}/api/v1/categories/${categoryId}`, request)
       .pipe(map(response => response.data));
   }
 
@@ -156,6 +217,33 @@ export class ApiService {
     formData.append('file', file);
     return this.http
       .post<ApiResponse<UploadPreviewResponse>>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/upload`, formData)
+      .pipe(map(response => response.data));
+  }
+
+  // Review queue endpoints
+  acceptAllTransactions(accountId?: string): Observable<number> {
+    const params = accountId ? `?accountId=${accountId}` : '';
+    return this.http
+      .post<ApiResponse<number>>(`${this.baseUrl}/api/v1/review/accept-all${params}`, {})
+      .pipe(map(response => response.data));
+  }
+
+  acceptTransaction(transactionId: string): Observable<ReviewTransaction> {
+    return this.http
+      .put<ApiResponse<ReviewTransaction>>(`${this.baseUrl}/api/v1/review/${transactionId}/accept`, {})
+      .pipe(map(response => response.data));
+  }
+
+  getReviewQueue(accountId?: string): Observable<ReviewTransaction[]> {
+    const params = accountId ? `?accountId=${accountId}` : '';
+    return this.http
+      .get<ApiResponse<ReviewTransaction[]>>(`${this.baseUrl}/api/v1/review${params}`)
+      .pipe(map(response => response.data ?? []));
+  }
+
+  overrideTransaction(transactionId: string, request: OverrideTransactionRequest): Observable<ReviewTransaction> {
+    return this.http
+      .put<ApiResponse<ReviewTransaction>>(`${this.baseUrl}/api/v1/review/${transactionId}/override`, request)
       .pipe(map(response => response.data));
   }
 
