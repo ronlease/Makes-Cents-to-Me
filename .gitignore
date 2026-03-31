@@ -52,3 +52,23 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Sample/test CSV files (user data)
+*.csv
+*.CSV
+*.xlsx
+
+# Angular environment files (generated from template)
+src/MakesCentsToMe.Web/src/environments/environment.ts
+src/MakesCentsToMe.Web/src/environments/environment.prod.ts
+
+# Node modules
+node_modules/
+
+# Angular build output
+dist/
+.angular/
+
+# Coverage reports
+coverage/
+coverage-*/

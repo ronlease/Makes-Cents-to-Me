@@ -1,0 +1,15 @@
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: makescents
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-makescents_dev}
+      POSTGRES_USER: makescents
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

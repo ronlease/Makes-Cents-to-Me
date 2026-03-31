@@ -1,0 +1,6 @@
+@MakesCentsToMe.Api_HostAddress = http://localhost:5008
+
+GET {{MakesCentsToMe.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

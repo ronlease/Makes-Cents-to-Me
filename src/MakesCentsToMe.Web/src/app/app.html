@@ -1,0 +1,31 @@
+<mat-sidenav-container class="sidenav-container">
+  <mat-sidenav mode="side" opened class="sidenav">
+    <mat-nav-list>
+      <a mat-list-item routerLink="/institutions" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>account_balance</mat-icon>
+        <span matListItemTitle>Institutions</span>
+      </a>
+      <a mat-list-item routerLink="/institutions" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>upload_file</mat-icon>
+        <span matListItemTitle>Import</span>
+      </a>
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <mat-toolbar color="primary" class="app-toolbar">
+      <span class="app-title">Makes Cents To Me</span>
+      <span class="spacer"></span>
+      <button
+        mat-icon-button
+        [matTooltip]="themeService.currentTheme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+        (click)="toggleTheme()">
+        <mat-icon>{{ themeService.currentTheme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
+    </mat-toolbar>
+
+    <main class="main-content">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>
