@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MakesCentsToMe.Api/MakesCentsToMe.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MakesCentsToMe.Integration/MakesCentsToMe.Integration.csproj" />
+    <Project Path="tests/MakesCentsToMe.Unit/MakesCentsToMe.Unit.csproj" />
+  </Folder>
+</Solution>

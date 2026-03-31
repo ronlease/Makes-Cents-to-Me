@@ -1,0 +1,26 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Component Diagram - API Container
+
+ContainerDb(db, "Database", "PostgreSQL", "Institutions, accounts, import profiles, transactions")
+Container(web, "Angular Web App", "Angular 21", "Frontend SPA")
+System_Ext(claude, "Claude API", "Vendor normalization and categorization")
+
+Container_Boundary(api, "API - ASP.NET Core 10") {
+    Component(institutions, "Institutions", "Minimal API + InstitutionService", "CRUD operations for financial institutions")
+    Component(accounts, "Accounts", "Minimal API + AccountService", "CRUD operations for accounts scoped to an institution")
+    Component(import, "Import", "Minimal API + ImportService", "CSV upload preview, import profile management, and transaction processing pipeline")
+}
+
+Rel(web, institutions, "Manages institutions", "HTTP/JSON")
+Rel(web, accounts, "Manages accounts", "HTTP/JSON")
+Rel(web, import, "Uploads CSV files, configures profiles, processes imports", "HTTP/JSON")
+
+Rel(institutions, db, "Reads/Writes institutions", "EF Core")
+Rel(accounts, db, "Reads/Writes accounts", "EF Core")
+Rel(import, db, "Reads/Writes import profiles, column mappings, and transactions", "EF Core")
+
+Rel(import, claude, "Analyzes transactions", "HTTPS/JSON", $tags="future")
+
+@enduml

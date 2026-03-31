@@ -1,0 +1,11 @@
+@MakesCentsToMe.Api_HostAddress = https://localhost:5010
+
+GET {{MakesCentsToMe.Api_HostAddress}}/api/v1/institutions
+Accept: application/json
+
+###
+
+GET {{MakesCentsToMe.Api_HostAddress}}/api/v1/accounts
+Accept: application/json
+
+###
