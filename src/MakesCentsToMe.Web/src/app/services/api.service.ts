@@ -1,15 +1,16 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export type AccountType = 'Checking' | 'CreditCard' | 'MoneyMarket' | 'Savings';
 
+export type AmountType = 'Single' | 'Split';
+
 export interface Account {
-  accountId: number;
   accountType: AccountType;
   hasImportProfile: boolean;
-  institutionId: number;
+  id: string;
   name: string;
 }
 
@@ -23,23 +24,36 @@ export interface AccountUpdateRequest {
   name: string;
 }
 
-export interface CsvPreview {
-  detectedHeaders: string[];
-  previewRows: string[][];
+export interface ApiResponse<T> {
+  data: T;
+  errors: string[];
+  success: boolean;
+}
+
+export interface ColumnMapping {
+  applicationField: string;
+  csvColumnName: string;
+  id: string;
+}
+
+export interface ColumnMappingRequest {
+  applicationField: string;
+  csvColumnName: string;
 }
 
 export interface ImportProfile {
-  accountId: number;
-  amountType: 'Single' | 'Split';
+  accountId: string;
+  amountType: AmountType;
   balanceProvided: boolean;
-  columnMappings: Record<string, string>;
+  columnMappings: ColumnMapping[];
   dateFormat: string;
+  id: string;
 }
 
 export interface ImportProfileRequest {
-  amountType: 'Single' | 'Split';
+  amountType: AmountType;
   balanceProvided: boolean;
-  columnMappings: Record<string, string>;
+  columnMappings: ColumnMappingRequest[];
   dateFormat: string;
 }
 
@@ -49,13 +63,13 @@ export interface ImportProcessRequest {
 }
 
 export interface ImportResult {
-  duplicatesSkipped: number;
+  rowsSkipped: number;
   transactionsCreated: number;
 }
 
 export interface Institution {
   accountCount: number;
-  institutionId: number;
+  id: string;
   name: string;
 }
 
@@ -67,9 +81,9 @@ export interface InstitutionUpdateRequest {
   name: string;
 }
 
-export interface UploadResponse {
-  importSessionId: string;
-  preview: CsvPreview;
+export interface UploadPreviewResponse {
+  headers: string[];
+  previewRows: string[][];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -78,67 +92,99 @@ export class ApiService {
   private readonly http = inject(HttpClient);
 
   // Account endpoints
-  createAccount(institutionId: number, request: AccountCreateRequest): Observable<Account> {
-    return this.http.post<Account>(`${this.baseUrl}/api/v1/institutions/${institutionId}/accounts`, request);
+  createAccount(institutionId: string, request: AccountCreateRequest): Observable<Account> {
+    return this.http
+      .post<ApiResponse<Account>>(`${this.baseUrl}/api/v1/institutions/${institutionId}/accounts`, request)
+      .pipe(map(response => response.data));
   }
 
-  deleteAccount(institutionId: number, accountId: number): Observable<void> {
+  deleteAccount(institutionId: string, accountId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/api/v1/institutions/${institutionId}/accounts/${accountId}`);
   }
 
-  getAccounts(institutionId: number): Observable<Account[]> {
-    return this.http.get<Account[]>(`${this.baseUrl}/api/v1/institutions/${institutionId}/accounts`);
+  getAccounts(institutionId: string): Observable<Account[]> {
+    return this.http
+      .get<ApiResponse<Account[]>>(`${this.baseUrl}/api/v1/institutions/${institutionId}/accounts`)
+      .pipe(map(response => response.data ?? []));
   }
 
-  updateAccount(institutionId: number, accountId: number, request: AccountUpdateRequest): Observable<Account> {
-    return this.http.put<Account>(`${this.baseUrl}/api/v1/institutions/${institutionId}/accounts/${accountId}`, request);
+  updateAccount(institutionId: string, accountId: string, request: AccountUpdateRequest): Observable<Account> {
+    return this.http
+      .put<ApiResponse<Account>>(`${this.baseUrl}/api/v1/institutions/${institutionId}/accounts/${accountId}`, request)
+      .pipe(map(response => response.data));
   }
 
   // Import endpoints
-  deleteImportProfile(accountId: number): Observable<void> {
+  deleteImportProfile(accountId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/profile`);
   }
 
-  getImportProfile(accountId: number): Observable<ImportProfile> {
-    return this.http.get<ImportProfile>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/profile`);
+  getImportProfile(accountId: string): Observable<ImportProfile> {
+    return this.http
+      .get<ApiResponse<ImportProfile>>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/profile`)
+      .pipe(map(response => response.data));
   }
 
-  processImport(accountId: number, request: ImportProcessRequest): Observable<ImportResult> {
-    return this.http.post<ImportResult>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/process`, request);
-  }
-
-  saveImportProfile(accountId: number, request: ImportProfileRequest): Observable<ImportProfile> {
-    return this.http.post<ImportProfile>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/profile`, request);
-  }
-
-  updateImportProfile(accountId: number, request: ImportProfileRequest): Observable<ImportProfile> {
-    return this.http.put<ImportProfile>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/profile`, request);
-  }
-
-  uploadCsv(accountId: number, file: File): Observable<UploadResponse> {
+  processImport(accountId: string, file: File, request: ImportProcessRequest): Observable<ImportResult> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<UploadResponse>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/upload`, formData);
+    if (request.openingBalance !== undefined) {
+      formData.append('openingBalance', String(request.openingBalance));
+    }
+    if (request.closingBalance !== undefined) {
+      formData.append('closingBalance', String(request.closingBalance));
+    }
+    return this.http
+      .post<ApiResponse<ImportResult>>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/process`, formData)
+      .pipe(map(response => response.data));
+  }
+
+  saveImportProfile(accountId: string, request: ImportProfileRequest): Observable<ImportProfile> {
+    return this.http
+      .post<ApiResponse<ImportProfile>>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/profile`, request)
+      .pipe(map(response => response.data));
+  }
+
+  updateImportProfile(accountId: string, request: ImportProfileRequest): Observable<ImportProfile> {
+    return this.http
+      .put<ApiResponse<ImportProfile>>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/profile`, request)
+      .pipe(map(response => response.data));
+  }
+
+  uploadCsv(accountId: string, file: File): Observable<UploadPreviewResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http
+      .post<ApiResponse<UploadPreviewResponse>>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/upload`, formData)
+      .pipe(map(response => response.data));
   }
 
   // Institution endpoints
   createInstitution(request: InstitutionCreateRequest): Observable<Institution> {
-    return this.http.post<Institution>(`${this.baseUrl}/api/v1/institutions`, request);
+    return this.http
+      .post<ApiResponse<Institution>>(`${this.baseUrl}/api/v1/institutions`, request)
+      .pipe(map(response => response.data));
   }
 
-  deleteInstitution(institutionId: number): Observable<void> {
+  deleteInstitution(institutionId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/api/v1/institutions/${institutionId}`);
   }
 
-  getInstitution(institutionId: number): Observable<Institution> {
-    return this.http.get<Institution>(`${this.baseUrl}/api/v1/institutions/${institutionId}`);
+  getInstitution(institutionId: string): Observable<Institution> {
+    return this.http
+      .get<ApiResponse<Institution>>(`${this.baseUrl}/api/v1/institutions/${institutionId}`)
+      .pipe(map(response => response.data));
   }
 
   getInstitutions(): Observable<Institution[]> {
-    return this.http.get<Institution[]>(`${this.baseUrl}/api/v1/institutions`);
+    return this.http
+      .get<ApiResponse<Institution[]>>(`${this.baseUrl}/api/v1/institutions`)
+      .pipe(map(response => response.data ?? []));
   }
 
-  updateInstitution(institutionId: number, request: InstitutionUpdateRequest): Observable<Institution> {
-    return this.http.put<Institution>(`${this.baseUrl}/api/v1/institutions/${institutionId}`, request);
+  updateInstitution(institutionId: string, request: InstitutionUpdateRequest): Observable<Institution> {
+    return this.http
+      .put<ApiResponse<Institution>>(`${this.baseUrl}/api/v1/institutions/${institutionId}`, request)
+      .pipe(map(response => response.data));
   }
 }

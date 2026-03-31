@@ -119,7 +119,7 @@ export class AccountListComponent implements OnInit {
   protected readonly accounts = signal<Account[]>([]);
   protected readonly displayedColumns = ['name', 'accountType', 'hasImportProfile', 'actions'];
   protected readonly errorMessage = signal<string | null>(null);
-  protected readonly institutionId = signal<number>(0);
+  protected readonly institutionId = signal<string>('');
   protected readonly isLoading = signal(false);
 
   private readonly apiService = inject(ApiService);
@@ -130,9 +130,9 @@ export class AccountListComponent implements OnInit {
 
   deleteAccount(account: Account): void {
     if (!confirm(`Delete "${account.name}"? This cannot be undone.`)) return;
-    this.apiService.deleteAccount(this.institutionId(), account.accountId).subscribe({
+    this.apiService.deleteAccount(this.institutionId(), account.id).subscribe({
       next: () => {
-        this.accounts.update(list => list.filter(a => a.accountId !== account.accountId));
+        this.accounts.update(list => list.filter(a => a.id !== account.id));
         this.snackBar.open(`"${account.name}" deleted.`, 'Dismiss', { duration: 3000 });
       },
       error: () => {
@@ -167,12 +167,12 @@ export class AccountListComponent implements OnInit {
   }
 
   navigateToImport(account: Account): void {
-    this.router.navigate(['/accounts', account.accountId, 'import']);
+    this.router.navigate(['/accounts', account.id, 'import']);
   }
 
   ngOnInit(): void {
     const idParam = this.route.snapshot.paramMap.get('institutionId');
-    this.institutionId.set(idParam ? Number(idParam) : 0);
+    this.institutionId.set(idParam ?? '');
     this.loadAccounts();
   }
 
@@ -198,10 +198,10 @@ export class AccountListComponent implements OnInit {
     const ref = this.dialog.open(AccountDialogComponent, { data, width: '420px' });
     ref.afterClosed().subscribe((result: AccountDialogResult | undefined) => {
       if (!result) return;
-      this.apiService.updateAccount(this.institutionId(), account.accountId, result).subscribe({
+      this.apiService.updateAccount(this.institutionId(), account.id, result).subscribe({
         next: updated => {
           this.accounts.update(list =>
-            list.map(a => (a.accountId === updated.accountId ? updated : a))
+            list.map(a => (a.id === updated.id ? updated : a))
           );
           this.snackBar.open(`"${updated.name}" updated.`, 'Dismiss', { duration: 3000 });
         },

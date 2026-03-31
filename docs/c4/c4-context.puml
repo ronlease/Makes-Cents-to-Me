@@ -1,0 +1,15 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title System Context Diagram - Makes Cents To Me
+
+Person(user, "User", "Single local user who imports CSV bank statements and reviews spending data")
+
+System(makesCents, "Makes Cents To Me", "Personal spending intelligence tool that ingests CSV exports, normalizes transactions, and surfaces spending patterns")
+
+System_Ext(claude, "Claude API", "Anthropic LLM used for vendor normalization and transaction categorization")
+
+Rel(user, makesCents, "Uploads CSV files, manages institutions/accounts, reviews transactions", "Browser")
+Rel(makesCents, claude, "Analyzes transactions for vendor normalization and categorization", "HTTPS/JSON")
+
+@enduml

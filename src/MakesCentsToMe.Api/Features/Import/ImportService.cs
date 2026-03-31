@@ -5,15 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MakesCentsToMe.Api.Features.Import;
 
-public interface IImportService
-{
-    Task<ApiResponse<ImportProfileResponse>> GetProfileAsync(Guid accountId);
-    Task<ApiResponse<ProcessImportResponse>> ProcessAsync(Guid accountId, Stream csvStream, ProcessImportRequest request);
-    Task<ApiResponse<ImportProfileResponse>> SaveProfileAsync(Guid accountId, SaveImportProfileRequest request);
-    Task<ApiResponse<UploadPreviewResponse>> UploadPreviewAsync(Guid accountId, Stream csvStream);
-    Task<ApiResponse<ImportProfileResponse>> UpdateProfileAsync(Guid accountId, SaveImportProfileRequest request);
-}
-
 public class ImportService(AppDbContext dbContext) : IImportService
 {
     private const int PreviewRowCount = 5;
@@ -143,7 +134,7 @@ public class ImportService(AppDbContext dbContext) : IImportService
                 Balance = balance,
                 Category = string.IsNullOrWhiteSpace(category) ? null : category,
                 CheckNumber = string.IsNullOrWhiteSpace(checkNumber) ? null : checkNumber,
-                Date = date,
+                Date = DateTime.SpecifyKind(date, DateTimeKind.Utc),
                 Description = description,
                 Fees = fees,
                 Id = Guid.NewGuid(),
@@ -223,19 +214,37 @@ public class ImportService(AppDbContext dbContext) : IImportService
         profile.BalanceProvided = request.BalanceProvided;
         profile.DateFormat = request.DateFormat;
 
-        dbContext.ColumnMappings.RemoveRange(profile.ColumnMappings);
+        var existingMappings = profile.ColumnMappings.ToDictionary(m => m.CsvColumnName);
+        var incomingMappings = request.ColumnMappings.ToDictionary(m => m.CsvColumnName);
 
-        profile.ColumnMappings = request.ColumnMappings
-            .Select(m => new ColumnMapping
-            {
-                ApplicationField = m.ApplicationField,
-                CsvColumnName = m.CsvColumnName,
-                Id = Guid.NewGuid(),
-                ImportProfileId = profile.Id,
-            })
+        // Remove mappings no longer present
+        var toRemove = profile.ColumnMappings
+            .Where(m => !incomingMappings.ContainsKey(m.CsvColumnName))
             .ToList();
+        dbContext.ColumnMappings.RemoveRange(toRemove);
 
-        await dbContext.SaveChangesAsync();
+        foreach (var incoming in request.ColumnMappings)
+        {
+            if (existingMappings.TryGetValue(incoming.CsvColumnName, out var existing))
+            {
+                existing.ApplicationField = incoming.ApplicationField;
+            }
+            else
+            {
+                profile.ColumnMappings.Add(new ColumnMapping
+                {
+                    ApplicationField = incoming.ApplicationField,
+                    CsvColumnName = incoming.CsvColumnName,
+                    Id = Guid.NewGuid(),
+                    ImportProfileId = profile.Id,
+                });
+            }
+        }
+
+        if (dbContext.ChangeTracker.HasChanges())
+        {
+            await dbContext.SaveChangesAsync();
+        }
 
         return ApiResponse<ImportProfileResponse>.Ok(MapProfileToResponse(profile));
     }
@@ -406,11 +415,17 @@ public class ImportService(AppDbContext dbContext) : IImportService
 
     private static bool TryParseDate(string value, string dateFormat, out DateTime date)
     {
-        return DateTime.TryParseExact(
-            value,
-            dateFormat,
-            System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.None,
-            out date);
+        var trimmed = value.Trim();
+
+        // Try exact format first
+        if (DateTime.TryParseExact(trimmed, dateFormat, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out date))
+        {
+            return true;
+        }
+
+        // Fall back to flexible parsing (handles AM/PM, varying time formats, etc.)
+        return DateTime.TryParse(trimmed, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out date);
     }
 }

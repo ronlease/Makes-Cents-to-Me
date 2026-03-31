@@ -11,7 +11,7 @@ institutions and accounts. Everything else depends on this foundation.
 
 ### [MCM-001] Create Core Database Schema
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -67,7 +67,7 @@ Feature: Core database schema
 
 ### [MCM-002] Manage Financial Institutions
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -110,7 +110,7 @@ Feature: Financial institution management
 
 ### [MCM-003] Manage Accounts Under Institutions
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -157,7 +157,7 @@ Feature: Account management
 
 ### [MCM-020] Light and Dark Mode Theme Support
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -216,7 +216,7 @@ and deduplication. This is the primary way data enters the system.
 
 ### [MCM-004] Upload CSV and Select Account
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -270,7 +270,7 @@ Feature: CSV upload with account selection and header detection
 
 ### [MCM-005] User-Defined Schema Mapping for Import Profiles
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -339,7 +339,7 @@ Feature: User-defined schema mapping and import profiles
 
 ### [MCM-006] Parse CSV Using Import Profile
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -984,12 +984,12 @@ Feature: Main dashboard
 
 | ID      | Title                                           | Priority | Status  |
 |---------|-------------------------------------------------|----------|---------|
-| MCM-001 | Create Core Database Schema                     | High     | Backlog |
-| MCM-002 | Manage Financial Institutions                   | High     | Backlog |
-| MCM-003 | Manage Accounts Under Institutions              | High     | Backlog |
-| MCM-004 | Upload CSV and Select Account                   | High     | Backlog |
-| MCM-005 | User-Defined Schema Mapping for Import Profiles | High     | Backlog |
-| MCM-006 | Parse CSV Using Import Profile                  | High     | Backlog |
+| MCM-001 | Create Core Database Schema                     | High     | Done    |
+| MCM-002 | Manage Financial Institutions                   | High     | Done    |
+| MCM-003 | Manage Accounts Under Institutions              | High     | Done    |
+| MCM-004 | Upload CSV and Select Account                   | High     | Done    |
+| MCM-005 | User-Defined Schema Mapping for Import Profiles | High     | Done    |
+| MCM-006 | Parse CSV Using Import Profile                  | High     | Done    |
 | MCM-007 | Deduplicate Transactions on Import              | High     | Backlog |
 | MCM-008 | Manage Canonical Categories                     | High     | Backlog |
 | MCM-009 | Claude Analyzes Transactions                    | High     | Backlog |
@@ -1003,4 +1003,4 @@ Feature: Main dashboard
 | MCM-017 | Recurring Transaction Detection (placeholder)   | Low      | Backlog |
 | MCM-018 | Spending Projection (placeholder)               | Low      | Backlog |
 | MCM-019 | Main Dashboard (placeholder)                    | Low      | Backlog |
-| MCM-020 | Light and Dark Mode Theme Support               | High     | Backlog |
+| MCM-020 | Light and Dark Mode Theme Support               | High     | Done    |

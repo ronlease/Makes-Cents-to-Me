@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,11 +10,11 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatStepperModule } from '@angular/material/stepper';
+import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ApiService, CsvPreview, ImportProfile, ImportResult } from '../../services/api.service';
+import { ApiService, ImportProfile, ImportResult, UploadPreviewResponse } from '../../services/api.service';
 
 type ApplicationField =
   | 'Amount'
@@ -98,7 +98,7 @@ const DATE_FORMAT_PRESETS = [
               <div class="preview-section">
                 <h3>Detected Headers</h3>
                 <div class="chip-row">
-                  @for (header of csvPreview()!.detectedHeaders; track header) {
+                  @for (header of csvPreview()!.headers; track header) {
                     <span class="header-chip">{{ header }}</span>
                   }
                 </div>
@@ -106,14 +106,14 @@ const DATE_FORMAT_PRESETS = [
                 <h3>Preview (first rows)</h3>
                 <div class="table-container">
                   <table mat-table [dataSource]="csvPreview()!.previewRows" class="preview-table">
-                    @for (header of csvPreview()!.detectedHeaders; track header; let colIndex = $index) {
+                    @for (header of csvPreview()!.headers; track header; let colIndex = $index) {
                       <ng-container [matColumnDef]="header">
                         <th mat-header-cell *matHeaderCellDef>{{ header }}</th>
                         <td mat-cell *matCellDef="let row">{{ row[colIndex] }}</td>
                       </ng-container>
                     }
-                    <tr mat-header-row *matHeaderRowDef="csvPreview()!.detectedHeaders"></tr>
-                    <tr mat-row *matRowDef="let row; columns: csvPreview()!.detectedHeaders;"></tr>
+                    <tr mat-header-row *matHeaderRowDef="csvPreview()!.headers"></tr>
+                    <tr mat-row *matRowDef="let row; columns: csvPreview()!.headers;"></tr>
                   </table>
                 </div>
 
@@ -185,7 +185,7 @@ const DATE_FORMAT_PRESETS = [
         <!-- Step 3: Process -->
         <mat-step label="Process">
           <div class="step-content">
-            @if (!existingProfile() || !savedProfile()?.balanceProvided) {
+            @if (!(existingProfile()?.balanceProvided || savedProfile()?.balanceProvided)) {
               <h3>Opening / Closing Balance</h3>
               <div class="balance-form">
                 <mat-radio-group [formControl]="balanceTypeControl" class="radio-group">
@@ -211,7 +211,7 @@ const DATE_FORMAT_PRESETS = [
                 <mat-icon class="success-icon">check_circle</mat-icon>
                 <h2>Import Complete</h2>
                 <p>Transactions created: <strong>{{ importResult()!.transactionsCreated }}</strong></p>
-                <p>Duplicates skipped: <strong>{{ importResult()!.duplicatesSkipped }}</strong></p>
+                <p>Rows skipped: <strong>{{ importResult()!.rowsSkipped }}</strong></p>
                 <button mat-flat-button [routerLink]="backRoute()">Back to Accounts</button>
               </div>
             } @else {
@@ -331,14 +331,16 @@ const DATE_FORMAT_PRESETS = [
   `],
 })
 export class ImportComponent implements OnInit {
-  protected readonly accountId = signal<number>(0);
+  @ViewChild('stepper') private stepper!: MatStepper;
+
+  protected readonly accountId = signal<string>('');
   protected readonly applicationFields = APPLICATION_FIELDS;
   protected readonly amountTypeControl = new FormControl<'Single' | 'Split'>('Single', { nonNullable: true });
   protected readonly balanceAmountControl = new FormControl<number | null>(null);
   protected readonly balanceProvidedControl = new FormControl<boolean>(false, { nonNullable: true });
   protected readonly balanceTypeControl = new FormControl<'closing' | 'opening'>('opening', { nonNullable: true });
   protected readonly columnMappingComplete = signal(false);
-  protected readonly csvPreview = signal<CsvPreview | null>(null);
+  protected readonly csvPreview = signal<UploadPreviewResponse | null>(null);
   protected readonly dateFormatControl = new FormControl<string>('M/d/yyyy', { nonNullable: true, validators: [Validators.required] });
   protected readonly dateFormatPresets = DATE_FORMAT_PRESETS;
   protected readonly detectedHeaders = signal<string[]>([]);
@@ -346,6 +348,7 @@ export class ImportComponent implements OnInit {
   protected readonly importResult = signal<ImportResult | null>(null);
   protected readonly isProcessing = signal(false);
   protected readonly isUploading = signal(false);
+  protected readonly uploadedFile = signal<File | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected readonly mappingForm: FormGroup = new FormGroup({});
   protected readonly savedProfile = signal<ImportProfile | null>(null);
@@ -355,30 +358,40 @@ export class ImportComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
 
   get backRoute(): () => string[] {
-    return () => {
-      const profile = this.existingProfile() ?? this.savedProfile();
-      if (profile) {
-        return ['/institutions', String(profile.accountId), 'accounts'];
-      }
-      return ['/institutions'];
-    };
+    return () => ['/institutions'];
   }
 
   advanceFromUpload(): void {
-    const headers = this.csvPreview()?.detectedHeaders ?? [];
+    const headers = this.csvPreview()?.headers ?? [];
     this.detectedHeaders.set(headers);
     this.buildMappingForm(headers);
     this.loadExistingProfile();
   }
 
   clearSavedProfile(): void {
+    const profile = this.existingProfile() ?? this.savedProfile();
     this.existingProfile.set(null);
     this.columnMappingComplete.set(false);
+
+    if (profile) {
+      this.amountTypeControl.setValue(profile.amountType);
+      this.balanceProvidedControl.setValue(profile.balanceProvided);
+      this.dateFormatControl.setValue(profile.dateFormat);
+
+      const headers = this.detectedHeaders();
+      this.buildMappingForm(headers);
+      for (const mapping of profile.columnMappings) {
+        const control = this.mappingForm.controls[mapping.csvColumnName];
+        if (control) {
+          control.setValue(mapping.applicationField);
+        }
+      }
+    }
   }
 
   ngOnInit(): void {
     const idParam = this.route.snapshot.paramMap.get('accountId');
-    this.accountId.set(idParam ? Number(idParam) : 0);
+    this.accountId.set(idParam ?? '');
   }
 
   onDragOver(event: DragEvent): void {
@@ -398,6 +411,12 @@ export class ImportComponent implements OnInit {
   }
 
   processImport(): void {
+    const file = this.uploadedFile();
+    if (!file) {
+      this.snackBar.open('No file uploaded. Please go back and upload a CSV.', 'Dismiss', { duration: 4000 });
+      return;
+    }
+
     this.isProcessing.set(true);
     const profile = this.savedProfile() ?? this.existingProfile();
     const balanceProvided = profile?.balanceProvided ?? false;
@@ -407,7 +426,7 @@ export class ImportComponent implements OnInit {
         ? { openingBalance: this.balanceAmountControl.value ?? undefined }
         : { closingBalance: this.balanceAmountControl.value ?? undefined };
 
-    this.apiService.processImport(this.accountId(), request).subscribe({
+    this.apiService.processImport(this.accountId(), file, request).subscribe({
       next: result => {
         this.importResult.set(result);
         this.isProcessing.set(false);
@@ -425,17 +444,18 @@ export class ImportComponent implements OnInit {
   }
 
   saveProfile(): void {
-    const columnMappings: Record<string, string> = {};
-    for (const header of this.detectedHeaders()) {
-      columnMappings[header] = this.mappingForm.controls[header]?.value ?? 'Ignore';
-    }
+    const columnMappings = this.detectedHeaders().map(header => ({
+      applicationField: this.mappingForm.controls[header]?.value ?? 'Ignore',
+      csvColumnName: header,
+    }));
     const request = {
       amountType: this.amountTypeControl.value,
       balanceProvided: this.balanceProvidedControl.value,
       columnMappings,
       dateFormat: this.dateFormatControl.value,
     };
-    const save$ = this.existingProfile()
+    const profileExists = this.existingProfile() ?? this.savedProfile();
+    const save$ = profileExists
       ? this.apiService.updateImportProfile(this.accountId(), request)
       : this.apiService.saveImportProfile(this.accountId(), request);
 
@@ -443,6 +463,7 @@ export class ImportComponent implements OnInit {
       next: profile => {
         this.savedProfile.set(profile);
         this.columnMappingComplete.set(true);
+        setTimeout(() => this.stepper.next());
         this.snackBar.open('Import profile saved.', 'Dismiss', { duration: 3000 });
       },
       error: () => {
@@ -454,10 +475,35 @@ export class ImportComponent implements OnInit {
   private buildMappingForm(headers: string[]): void {
     const controls: Record<string, FormControl<string>> = {};
     for (const header of headers) {
-      controls[header] = new FormControl<string>('Ignore', { nonNullable: true });
+      const guessed = this.guessApplicationField(header);
+      controls[header] = new FormControl<string>(guessed, { nonNullable: true });
     }
     Object.keys(this.mappingForm.controls).forEach(key => this.mappingForm.removeControl(key));
     Object.entries(controls).forEach(([key, control]) => this.mappingForm.addControl(key, control));
+  }
+
+  private guessApplicationField(header: string): string {
+    const normalized = header.toLowerCase().replace(/[^a-z]/g, '');
+    const guessMap: Record<string, string> = {
+      amount: 'Amount',
+      balance: 'Balance',
+      category: 'Category',
+      check: 'CheckNumber',
+      checknumber: 'CheckNumber',
+      checkno: 'CheckNumber',
+      date: 'Date',
+      description: 'Description',
+      fees: 'Fees',
+      fee: 'Fees',
+      interest: 'Interest',
+      memo: 'Description',
+      principal: 'Principal',
+      transactiondate: 'Date',
+      transdate: 'Date',
+      postdate: 'Date',
+      postingdate: 'Date',
+    };
+    return guessMap[normalized] ?? 'Ignore';
   }
 
   private loadExistingProfile(): void {
@@ -476,9 +522,10 @@ export class ImportComponent implements OnInit {
 
   private uploadFile(file: File): void {
     this.isUploading.set(true);
+    this.uploadedFile.set(file);
     this.apiService.uploadCsv(this.accountId(), file).subscribe({
       next: response => {
-        this.csvPreview.set(response.preview);
+        this.csvPreview.set(response);
         this.isUploading.set(false);
       },
       error: () => {

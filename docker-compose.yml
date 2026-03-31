@@ -1,12 +1,13 @@
 services:
   postgres:
+    container_name: makescents-postgres
+    image: postgres:17
     environment:
       POSTGRES_DB: makescents
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-makescents_dev}
       POSTGRES_USER: makescents
-    image: postgres:17
+      POSTGRES_PASSWORD: makescents_dev
     ports:
-      - "5432:5432"
+      - "5434:5432"
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data

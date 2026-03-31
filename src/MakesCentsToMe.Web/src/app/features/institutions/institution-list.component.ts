@@ -115,9 +115,9 @@ export class InstitutionListComponent implements OnInit {
 
   deleteInstitution(institution: Institution): void {
     if (!confirm(`Delete "${institution.name}"? This cannot be undone.`)) return;
-    this.apiService.deleteInstitution(institution.institutionId).subscribe({
+    this.apiService.deleteInstitution(institution.id).subscribe({
       next: () => {
-        this.institutions.update(list => list.filter(i => i.institutionId !== institution.institutionId));
+        this.institutions.update(list => list.filter(i => i.id !== institution.id));
         this.snackBar.open(`"${institution.name}" deleted.`, 'Dismiss', { duration: 3000 });
       },
       error: () => {
@@ -167,10 +167,10 @@ export class InstitutionListComponent implements OnInit {
     const ref = this.dialog.open(InstitutionDialogComponent, { data, width: '400px' });
     ref.afterClosed().subscribe((result: InstitutionDialogResult | undefined) => {
       if (!result) return;
-      this.apiService.updateInstitution(institution.institutionId, { name: result.name }).subscribe({
+      this.apiService.updateInstitution(institution.id, { name: result.name }).subscribe({
         next: updated => {
           this.institutions.update(list =>
-            list.map(i => (i.institutionId === updated.institutionId ? updated : i))
+            list.map(i => (i.id === updated.id ? updated : i))
           );
           this.snackBar.open(`"${updated.name}" updated.`, 'Dismiss', { duration: 3000 });
         },
@@ -182,6 +182,6 @@ export class InstitutionListComponent implements OnInit {
   }
 
   viewAccounts(institution: Institution): void {
-    this.router.navigate(['/institutions', institution.institutionId, 'accounts']);
+    this.router.navigate(['/institutions', institution.id, 'accounts']);
   }
 }
