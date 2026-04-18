@@ -5,8 +5,8 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Exclude>[*]MakesCentsToMe.Api.Infrastructure.Data.Migrations.*,[*]Microsoft.AspNetCore.OpenApi.*,[*]System.Runtime.CompilerServices.*</Exclude>
-          <ExcludeByFile>**/Program.cs,**/*Endpoints.cs</ExcludeByFile>
+          <Exclude>[*]MakesCentsToMe.Api.Infrastructure.Data.Migrations.*,[*]Microsoft.AspNetCore.OpenApi.*,[*]System.Runtime.CompilerServices.*,[*]MakesCentsToMe.Api.Infrastructure.Claude.ClaudeMessageRequest,[*]MakesCentsToMe.Api.Infrastructure.Claude.ClaudeRequestMessage,[*]MakesCentsToMe.Api.Infrastructure.Claude.ClaudeMessageResponse,[*]MakesCentsToMe.Api.Infrastructure.Claude.ClaudeContentBlock,[*]MakesCentsToMe.Api.Infrastructure.Claude.TransactionAnalysisResult</Exclude>
+          <ExcludeByFile>**/Program.cs,**/*Endpoints.cs,**/*Dtos.cs</ExcludeByFile>
         </Configuration>
       </DataCollector>
     </DataCollectors>

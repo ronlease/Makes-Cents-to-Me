@@ -1,6 +1,9 @@
 using MakesCentsToMe.Api.Features.Accounts;
+using MakesCentsToMe.Api.Features.Categories;
 using MakesCentsToMe.Api.Features.Import;
 using MakesCentsToMe.Api.Features.Institutions;
+using MakesCentsToMe.Api.Features.Review;
+using MakesCentsToMe.Api.Infrastructure.Claude;
 using MakesCentsToMe.Api.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -19,8 +22,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Feature services
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IClaudeAnalysisService, ClaudeAnalysisService>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<IInstitutionService, InstitutionService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+
+// Claude API HTTP client
+builder.Services.AddHttpClient<ClaudeAnalysisService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.anthropic.com/");
+    client.DefaultRequestHeaders.Add("x-api-key", builder.Configuration["Claude:ApiKey"]);
+    client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+});
 
 // Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -37,7 +51,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins("https://localhost:4210")
               .AllowAnyHeader()
               .AllowAnyMethod());
 });
@@ -71,8 +85,10 @@ app.UseCors();
 app.UseHttpsRedirection();
 
 // Map feature endpoints
-app.MapInstitutionEndpoints();
 app.MapAccountEndpoints();
+app.MapCategoryEndpoints();
 app.MapImportEndpoints();
+app.MapInstitutionEndpoints();
+app.MapReviewEndpoints();
 
 app.Run();

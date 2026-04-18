@@ -207,6 +207,50 @@ Feature: Light and dark mode theme support
 
 ---
 
+### [MCM-021] Redesign Frontend UI
+
+**Status:** Backlog
+**Priority:** Medium
+
+#### Business Problem
+The current UI uses default Angular Material styling with minimal design polish. The
+application needs a visual redesign to be more attractive and usable -- better layout,
+typography, spacing, color palette, and overall polish. This is a cosmetic overhaul, not a
+functional change. A well-designed interface builds confidence in the tool and makes daily
+use more pleasant.
+
+#### Acceptance Criteria
+```gherkin
+Feature: Frontend UI redesign
+
+  Scenario: Consistent visual theme across all pages
+    Given the application has been redesigned
+    When I navigate between any pages in the application
+    Then every page uses a consistent color palette, typography, and spacing
+    And no page falls back to unstyled or default Angular Material appearance
+
+  Scenario: Responsive layout adapts to different screen sizes
+    Given the application has been redesigned
+    When I view the application on a screen width of 1920 pixels
+    Then the layout uses available space effectively without excessive whitespace
+    When I view the application on a screen width of 768 pixels
+    Then the layout reflows gracefully without horizontal scrolling or overlapping elements
+
+  Scenario: Navigation is clear and accessible
+    Given the application has been redesigned
+    When I open the application
+    Then the primary navigation is visible and clearly indicates the current active page
+    And all navigation links have readable labels and adequate click targets
+
+  Scenario: Component styling is polished and intentional
+    Given the application has been redesigned
+    When I interact with buttons, tables, forms, and cards throughout the application
+    Then all components have consistent border radius, shadow, padding, and hover states
+    And interactive elements provide clear visual feedback on hover, focus, and active states
+```
+
+---
+
 ## Epic 2: CSV Import Pipeline
 
 These items build the import pipeline from file upload through column mapping, parsing,
@@ -408,7 +452,7 @@ Feature: CSV parsing with import profile
 
 ### [MCM-007] Deduplicate Transactions on Import
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -453,7 +497,7 @@ to map into.
 
 ### [MCM-008] Manage Canonical Categories
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -508,7 +552,7 @@ vendor names and canonical categories.
 
 ### [MCM-009] Claude Analyzes Transactions for Vendor and Category
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -559,7 +603,7 @@ After Claude provides suggestions, the user reviews and accepts or overrides the
 
 ### [MCM-010] Review Queue for Imported Transactions
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -990,10 +1034,10 @@ Feature: Main dashboard
 | MCM-004 | Upload CSV and Select Account                   | High     | Done    |
 | MCM-005 | User-Defined Schema Mapping for Import Profiles | High     | Done    |
 | MCM-006 | Parse CSV Using Import Profile                  | High     | Done    |
-| MCM-007 | Deduplicate Transactions on Import              | High     | Backlog |
-| MCM-008 | Manage Canonical Categories                     | High     | Backlog |
-| MCM-009 | Claude Analyzes Transactions                    | High     | Backlog |
-| MCM-010 | Review Queue for Imported Transactions          | High     | Backlog |
+| MCM-007 | Deduplicate Transactions on Import              | High     | Done    |
+| MCM-008 | Manage Canonical Categories                     | High     | Done    |
+| MCM-009 | Claude Analyzes Transactions                    | High     | Done    |
+| MCM-010 | Review Queue for Imported Transactions          | High     | Done    |
 | MCM-011 | Promote Corrections to Learned Rules            | High     | Backlog |
 | MCM-012 | View and Search Transactions                    | Medium   | Backlog |
 | MCM-013 | Spending by Category Report (placeholder)       | Medium   | Backlog |
@@ -1004,3 +1048,4 @@ Feature: Main dashboard
 | MCM-018 | Spending Projection (placeholder)               | Low      | Backlog |
 | MCM-019 | Main Dashboard (placeholder)                    | Low      | Backlog |
 | MCM-020 | Light and Dark Mode Theme Support               | High     | Done    |
+| MCM-021 | Redesign Frontend UI                            | Medium   | Backlog |

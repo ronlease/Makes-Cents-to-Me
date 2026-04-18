@@ -1,13 +1,21 @@
 <mat-sidenav-container class="sidenav-container">
   <mat-sidenav mode="side" opened class="sidenav">
     <mat-nav-list>
-      <a mat-list-item routerLink="/institutions" routerLinkActive="active-link">
-        <mat-icon matListItemIcon>account_balance</mat-icon>
-        <span matListItemTitle>Institutions</span>
+      <a mat-list-item routerLink="/categories" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>label</mat-icon>
+        <span matListItemTitle>Categories</span>
       </a>
       <a mat-list-item routerLink="/institutions" routerLinkActive="active-link">
         <mat-icon matListItemIcon>upload_file</mat-icon>
         <span matListItemTitle>Import</span>
+      </a>
+      <a mat-list-item routerLink="/institutions" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>account_balance</mat-icon>
+        <span matListItemTitle>Institutions</span>
+      </a>
+      <a mat-list-item routerLink="/review" routerLinkActive="active-link">
+        <mat-icon matListItemIcon>rate_review</mat-icon>
+        <span matListItemTitle>Review Queue</span>
       </a>
     </mat-nav-list>
   </mat-sidenav>

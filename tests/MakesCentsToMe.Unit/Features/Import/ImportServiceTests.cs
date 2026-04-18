@@ -203,19 +203,60 @@
 //   Given a profile with date format "MM/dd/yyyy"
 //   When ProcessAsync is called with a date formatted as "January 1, 2024"
 //   Then the transaction is created with the correctly parsed date
+//
+// Feature: Import Deduplication
+//
+// Scenario: Import with duplicate rows skips matching transactions
+//   Given a transaction for account A on 2024-01-01 with description "Coffee" and amount 5.00 already exists
+//   When ProcessAsync is called with a CSV row matching the same date, description, and amount
+//   Then the duplicate row is skipped and DuplicatesSkipped is 1
+//   And no new transaction is created in the database
+//
+// Scenario: Import same file twice results in all duplicates on second import
+//   Given a CSV with two data rows has already been imported successfully
+//   When the same CSV is imported again for the same account
+//   Then DuplicatesSkipped equals 2 and TransactionsCreated equals 0
+//
+// Scenario: Two legitimately distinct transactions on same day from same vendor are both imported on first import
+//   Given no existing transactions in the database
+//   When a CSV containing two identical rows (same date, description, amount) is imported
+//   Then both transactions are created because neither existed before import
+//
+// Scenario: ProcessImportResponse includes DuplicatesSkipped count
+//   Given one existing transaction and a CSV containing that same row plus one new row
+//   When ProcessAsync is called
+//   Then the response has DuplicatesSkipped = 1 and TransactionsCreated = 1
+//
+// Scenario: Duplicate detection is scoped to the account
+//   Given a transaction exists for account A matching a CSV row
+//   When that same CSV row is imported for account B
+//   Then no duplicate is detected and the transaction is created for account B
+//
+// Scenario: Claude analysis service is called after non-duplicate transactions are persisted
+//   Given a valid account and profile with one new CSV row
+//   When ProcessAsync is called
+//   Then IClaudeAnalysisService.AnalyzeTransactionsAsync is called exactly once
+//
+// Scenario: Claude analysis service is not called when all rows are duplicates
+//   Given all CSV rows match existing transactions
+//   When ProcessAsync is called
+//   Then IClaudeAnalysisService.AnalyzeTransactionsAsync is never called
 
 using FluentAssertions;
 using MakesCentsToMe.Api.Features.Import;
+using MakesCentsToMe.Api.Infrastructure.Claude;
 using MakesCentsToMe.Api.Infrastructure.Data;
 using MakesCentsToMe.Api.Models.Entities;
 using MakesCentsToMe.Unit.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using System.Text;
 
 namespace MakesCentsToMe.Unit.Features.Import;
 
 public class ImportServiceTests : IDisposable
 {
+    private readonly Mock<IClaudeAnalysisService> _claudeAnalysisServiceMock;
     private readonly AppDbContext _dbContext;
     private readonly string _databaseName;
     private readonly ImportService _service;
@@ -224,7 +265,11 @@ public class ImportServiceTests : IDisposable
     {
         _databaseName = Guid.NewGuid().ToString();
         _dbContext = InMemoryDbContextFactory.CreateWithDatabaseName(_databaseName);
-        _service = new ImportService(_dbContext);
+        _claudeAnalysisServiceMock = new Mock<IClaudeAnalysisService>();
+        _claudeAnalysisServiceMock
+            .Setup(s => s.AnalyzeTransactionsAsync(It.IsAny<List<Transaction>>()))
+            .Returns(Task.CompletedTask);
+        _service = new ImportService(_dbContext, _claudeAnalysisServiceMock.Object);
     }
 
     public void Dispose() => _dbContext.Dispose();
@@ -950,7 +995,7 @@ public class ImportServiceTests : IDisposable
 
         // Assert
         var transaction = await _dbContext.Transactions.SingleAsync();
-        transaction.Category.Should().Be("Food & Drink");
+        transaction.RawCategory.Should().Be("Food & Drink");
     }
 
     [Fact]
@@ -978,7 +1023,7 @@ public class ImportServiceTests : IDisposable
 
         // Assert
         var transaction = await _dbContext.Transactions.SingleAsync();
-        transaction.Category.Should().BeNull();
+        transaction.RawCategory.Should().BeNull();
     }
 
     [Fact]
@@ -1129,6 +1174,193 @@ public class ImportServiceTests : IDisposable
         transaction.Amount.Should().Be(100.00m);
     }
 
+    // --- ProcessAsync — Deduplication ---
+
+    [Fact]
+    public async Task ProcessAsync_CsvRowMatchesExistingTransaction_SkipsDuplicateAndIncrementsDuplicatesSkipped()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        SeedExistingTransaction(account.Id, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Coffee", 5.00m);
+
+        var request = new ProcessImportRequest(null, null);
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,Coffee,5.00,995.00",
+        ]);
+
+        // Act
+        var result = await _service.ProcessAsync(account.Id, stream, request);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.DuplicatesSkipped.Should().Be(1);
+        result.Data.TransactionsCreated.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_CsvRowMatchesExistingTransaction_DoesNotCreateNewTransactionInDatabase()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        SeedExistingTransaction(account.Id, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Coffee", 5.00m);
+
+        var request = new ProcessImportRequest(null, null);
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,Coffee,5.00,995.00",
+        ]);
+
+        // Act
+        await _service.ProcessAsync(account.Id, stream, request);
+
+        // Assert
+        var totalTransactions = await _dbContext.Transactions.CountAsync(t => t.AccountId == account.Id);
+        totalTransactions.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_SameFilImportedTwice_SecondImportReportsAllRowsAsDuplicates()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+
+        var csvLines = new[]
+        {
+            "Date,Description,Amount,Balance",
+            "01/01/2024,Coffee,5.00,995.00",
+            "01/02/2024,Groceries,50.00,945.00",
+        };
+
+        var request = new ProcessImportRequest(null, null);
+
+        using var firstStream = BuildStream(csvLines);
+        await _service.ProcessAsync(account.Id, firstStream, request);
+
+        // Act — second import of the same file
+        using var secondStream = BuildStream(csvLines);
+        var result = await _service.ProcessAsync(account.Id, secondStream, request);
+
+        // Assert
+        result.Data!.DuplicatesSkipped.Should().Be(2);
+        result.Data.TransactionsCreated.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_TwoIdenticalRowsInSameCsvFirstImport_CreatesBothTransactions()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+
+        var request = new ProcessImportRequest(null, null);
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,Coffee,5.00,995.00",
+            "01/01/2024,Coffee,5.00,990.00",
+        ]);
+
+        // Act
+        var result = await _service.ProcessAsync(account.Id, stream, request);
+
+        // Assert
+        result.Data!.TransactionsCreated.Should().Be(2);
+        result.Data.DuplicatesSkipped.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_OneExistingAndOneNewRow_ReturnsOneDuplicateSkippedAndOneTransactionCreated()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        SeedExistingTransaction(account.Id, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Coffee", 5.00m);
+
+        var request = new ProcessImportRequest(null, null);
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,Coffee,5.00,995.00",
+            "01/02/2024,Groceries,50.00,945.00",
+        ]);
+
+        // Act
+        var result = await _service.ProcessAsync(account.Id, stream, request);
+
+        // Assert
+        result.Data!.DuplicatesSkipped.Should().Be(1);
+        result.Data.TransactionsCreated.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_DuplicateDetectionScopedToAccount_CreatesTransactionForDifferentAccount()
+    {
+        // Arrange
+        var (accountA, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        var (accountB, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        SeedExistingTransaction(accountA.Id, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Coffee", 5.00m);
+
+        var request = new ProcessImportRequest(null, null);
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,Coffee,5.00,995.00",
+        ]);
+
+        // Act — import the same row for account B
+        var result = await _service.ProcessAsync(accountB.Id, stream, request);
+
+        // Assert
+        result.Data!.DuplicatesSkipped.Should().Be(0);
+        result.Data.TransactionsCreated.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_OneNewTransaction_CallsClaudeAnalysisServiceExactlyOnce()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+
+        var request = new ProcessImportRequest(null, null);
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,Coffee,5.00,995.00",
+        ]);
+
+        // Act
+        await _service.ProcessAsync(account.Id, stream, request);
+
+        // Assert
+        _claudeAnalysisServiceMock.Verify(
+            s => s.AnalyzeTransactionsAsync(It.IsAny<List<Transaction>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_AllRowsAreDuplicates_NeverCallsClaudeAnalysisService()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        SeedExistingTransaction(account.Id, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Coffee", 5.00m);
+
+        var request = new ProcessImportRequest(null, null);
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,Coffee,5.00,995.00",
+        ]);
+
+        // Act
+        await _service.ProcessAsync(account.Id, stream, request);
+
+        // Assert
+        _claudeAnalysisServiceMock.Verify(
+            s => s.AnalyzeTransactionsAsync(It.IsAny<List<Transaction>>()),
+            Times.Never);
+    }
+
     // --- Helpers ---
 
     private Institution SeedInstitution(string name)
@@ -1240,6 +1472,27 @@ public class ImportServiceTests : IDisposable
             BalanceProvided: balanceProvided,
             ColumnMappings: [],
             DateFormat: dateFormat);
+    }
+
+    /// <summary>
+    /// Seeds a fully committed transaction directly into the database to simulate a previously imported record.
+    /// Used to set up deduplication scenarios where an identical row should be skipped on re-import.
+    /// </summary>
+    private Transaction SeedExistingTransaction(Guid accountId, DateTime date, string description, decimal amount)
+    {
+        var transaction = new Transaction
+        {
+            AccountId = accountId,
+            Amount = amount,
+            Date = date,
+            Description = description,
+            Id = Guid.NewGuid(),
+            RawCsvRow = $"{date:MM/dd/yyyy},{description},{amount}",
+            Status = TransactionStatus.Committed,
+        };
+        _dbContext.Transactions.Add(transaction);
+        _dbContext.SaveChanges();
+        return transaction;
     }
 
     private static MemoryStream BuildStream(IEnumerable<string> lines)
