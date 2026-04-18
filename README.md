@@ -62,9 +62,12 @@ MakesCentsToMe/
     MakesCentsToMe.Api/          # ASP.NET Core 10 Web API
       Features/                  # Vertical slice feature folders
         Accounts/                # Account CRUD
-        Import/                  # CSV upload, column mapping, parsing
+        Categories/              # Canonical spending categories
+        Import/                  # CSV upload, column mapping, parsing, dedup
         Institutions/            # Institution CRUD
+        Review/                  # Post-import review queue
       Infrastructure/
+        Claude/                  # Claude API client for vendor/category analysis
         Data/                    # EF Core DbContext, migrations, configurations
       Models/
         Entities/                # EF Core entity classes
