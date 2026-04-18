@@ -6,9 +6,9 @@ title Container Diagram - Makes Cents To Me
 Person(user, "User", "Single local user")
 
 System_Boundary(app, "Makes Cents To Me") {
-    Container(web, "Angular Web App", "Angular 21", "Spending dashboard UI with institution/account management and CSV import wizard")
-    Container(api, "API", "ASP.NET Core 10", "REST API providing institution, account, and import pipeline endpoints")
-    ContainerDb(db, "Database", "PostgreSQL", "Stores institutions, accounts, import profiles, column mappings, and transactions")
+    Container(web, "Angular Web App", "Angular 21", "Institution/account management, CSV import wizard, category management, and review queue")
+    Container(api, "API", "ASP.NET Core 10", "REST API for institutions, accounts, import pipeline, categories, and review queue")
+    ContainerDb(db, "Database", "PostgreSQL", "Stores institutions, accounts, import profiles, column mappings, transactions, and categories")
 }
 
 System_Ext(claude, "Claude API", "Vendor normalization and categorization")
