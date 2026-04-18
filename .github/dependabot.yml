@@ -17,6 +17,38 @@ updates:
         patterns:
           - "Microsoft.AspNetCore*"
 
+  # NuGet packages for the Unit test project — kept in lockstep with Api versions
+  - package-ecosystem: nuget
+    directory: /tests/MakesCentsToMe.Unit
+    schedule:
+      interval: weekly
+    target-branch: main
+    open-pull-requests-limit: 5
+    groups:
+      efcore:
+        patterns:
+          - "Microsoft.EntityFrameworkCore*"
+          - "Npgsql.EntityFrameworkCore*"
+      aspnetcore:
+        patterns:
+          - "Microsoft.AspNetCore*"
+
+  # NuGet packages for the Integration test project — kept in lockstep with Api versions
+  - package-ecosystem: nuget
+    directory: /tests/MakesCentsToMe.Integration
+    schedule:
+      interval: weekly
+    target-branch: main
+    open-pull-requests-limit: 5
+    groups:
+      efcore:
+        patterns:
+          - "Microsoft.EntityFrameworkCore*"
+          - "Npgsql.EntityFrameworkCore*"
+      aspnetcore:
+        patterns:
+          - "Microsoft.AspNetCore*"
+
   # npm packages for the Angular frontend
   - package-ecosystem: npm
     directory: /src/MakesCentsToMe.Web
@@ -32,6 +64,11 @@ updates:
         patterns:
           - "@angular/material"
           - "@angular/cdk"
+    ignore:
+      # Angular 21 peer-requires TypeScript 5.x; block TS major bumps until Angular supports them
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
 
   # GitHub Actions
   - package-ecosystem: github-actions
