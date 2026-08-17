@@ -51,7 +51,6 @@ import {
       </div>
     } @else {
       <table mat-table [dataSource]="accounts()" class="full-width">
-
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Name</th>
           <td mat-cell *matCellDef="let row">{{ row.name }}</td>
@@ -74,7 +73,11 @@ import {
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef>Actions</th>
           <td mat-cell *matCellDef="let row">
-            <button mat-icon-button matTooltip="Import Transactions" (click)="navigateToImport(row)">
+            <button
+              mat-icon-button
+              matTooltip="Import Transactions"
+              (click)="navigateToImport(row)"
+            >
               <mat-icon>upload_file</mat-icon>
             </button>
             <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(row)">
@@ -87,7 +90,7 @@ import {
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
 
         <tr class="mat-row" *matNoDataRow>
           <td class="mat-cell no-data-cell" [attr.colspan]="displayedColumns.length">
@@ -97,23 +100,29 @@ import {
       </table>
     }
   `,
-  styles: [`
-    .spacer { flex: 1 1 auto; }
-    .full-width { width: 100%; }
-    .loading-container {
-      display: flex;
-      justify-content: center;
-      padding: 48px;
-    }
-    .error-container {
-      padding: 24px;
-      text-align: center;
-    }
-    .no-data-cell {
-      padding: 24px;
-      text-align: center;
-    }
-  `],
+  styles: [
+    `
+      .spacer {
+        flex: 1 1 auto;
+      }
+      .full-width {
+        width: 100%;
+      }
+      .loading-container {
+        display: flex;
+        justify-content: center;
+        padding: 48px;
+      }
+      .error-container {
+        padding: 24px;
+        text-align: center;
+      }
+      .no-data-cell {
+        padding: 24px;
+        text-align: center;
+      }
+    `,
+  ],
 })
 export class AccountListComponent implements OnInit {
   protected readonly accounts = signal<Account[]>([]);
@@ -132,7 +141,7 @@ export class AccountListComponent implements OnInit {
     if (!confirm(`Delete "${account.name}"? This cannot be undone.`)) return;
     this.apiService.deleteAccount(this.institutionId(), account.id).subscribe({
       next: () => {
-        this.accounts.update(list => list.filter(a => a.id !== account.id));
+        this.accounts.update((list) => list.filter((a) => a.id !== account.id));
         this.snackBar.open(`"${account.name}" deleted.`, 'Dismiss', { duration: 3000 });
       },
       error: () => {
@@ -155,7 +164,7 @@ export class AccountListComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
     this.apiService.getAccounts(this.institutionId()).subscribe({
-      next: data => {
+      next: (data) => {
         this.accounts.set(data);
         this.isLoading.set(false);
       },
@@ -182,8 +191,8 @@ export class AccountListComponent implements OnInit {
     ref.afterClosed().subscribe((result: AccountDialogResult | undefined) => {
       if (!result) return;
       this.apiService.createAccount(this.institutionId(), result).subscribe({
-        next: created => {
-          this.accounts.update(list => [...list, created]);
+        next: (created) => {
+          this.accounts.update((list) => [...list, created]);
           this.snackBar.open(`"${created.name}" added.`, 'Dismiss', { duration: 3000 });
         },
         error: () => {
@@ -199,10 +208,8 @@ export class AccountListComponent implements OnInit {
     ref.afterClosed().subscribe((result: AccountDialogResult | undefined) => {
       if (!result) return;
       this.apiService.updateAccount(this.institutionId(), account.id, result).subscribe({
-        next: updated => {
-          this.accounts.update(list =>
-            list.map(a => (a.id === updated.id ? updated : a))
-          );
+        next: (updated) => {
+          this.accounts.update((list) => list.map((a) => (a.id === updated.id ? updated : a)));
           this.snackBar.open(`"${updated.name}" updated.`, 'Dismiss', { duration: 3000 });
         },
         error: () => {

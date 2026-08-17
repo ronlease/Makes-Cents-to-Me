@@ -47,7 +47,6 @@ import {
       </div>
     } @else {
       <table mat-table [dataSource]="institutions()" class="full-width">
-
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Name</th>
           <td mat-cell *matCellDef="let row">{{ row.name }}</td>
@@ -67,14 +66,19 @@ import {
             <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(row)">
               <mat-icon>edit</mat-icon>
             </button>
-            <button mat-icon-button matTooltip="Delete" color="warn" (click)="deleteInstitution(row)">
+            <button
+              mat-icon-button
+              matTooltip="Delete"
+              color="warn"
+              (click)="deleteInstitution(row)"
+            >
               <mat-icon>delete</mat-icon>
             </button>
           </td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
 
         <tr class="mat-row" *matNoDataRow>
           <td class="mat-cell no-data-cell" [attr.colspan]="displayedColumns.length">
@@ -84,23 +88,29 @@ import {
       </table>
     }
   `,
-  styles: [`
-    .spacer { flex: 1 1 auto; }
-    .full-width { width: 100%; }
-    .loading-container {
-      display: flex;
-      justify-content: center;
-      padding: 48px;
-    }
-    .error-container {
-      padding: 24px;
-      text-align: center;
-    }
-    .no-data-cell {
-      padding: 24px;
-      text-align: center;
-    }
-  `],
+  styles: [
+    `
+      .spacer {
+        flex: 1 1 auto;
+      }
+      .full-width {
+        width: 100%;
+      }
+      .loading-container {
+        display: flex;
+        justify-content: center;
+        padding: 48px;
+      }
+      .error-container {
+        padding: 24px;
+        text-align: center;
+      }
+      .no-data-cell {
+        padding: 24px;
+        text-align: center;
+      }
+    `,
+  ],
 })
 export class InstitutionListComponent implements OnInit {
   protected readonly displayedColumns = ['name', 'accountCount', 'actions'];
@@ -117,7 +127,7 @@ export class InstitutionListComponent implements OnInit {
     if (!confirm(`Delete "${institution.name}"? This cannot be undone.`)) return;
     this.apiService.deleteInstitution(institution.id).subscribe({
       next: () => {
-        this.institutions.update(list => list.filter(i => i.id !== institution.id));
+        this.institutions.update((list) => list.filter((i) => i.id !== institution.id));
         this.snackBar.open(`"${institution.name}" deleted.`, 'Dismiss', { duration: 3000 });
       },
       error: () => {
@@ -130,7 +140,7 @@ export class InstitutionListComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
     this.apiService.getInstitutions().subscribe({
-      next: data => {
+      next: (data) => {
         this.institutions.set(data);
         this.isLoading.set(false);
       },
@@ -151,8 +161,8 @@ export class InstitutionListComponent implements OnInit {
     ref.afterClosed().subscribe((result: InstitutionDialogResult | undefined) => {
       if (!result) return;
       this.apiService.createInstitution({ name: result.name }).subscribe({
-        next: created => {
-          this.institutions.update(list => [...list, created]);
+        next: (created) => {
+          this.institutions.update((list) => [...list, created]);
           this.snackBar.open(`"${created.name}" added.`, 'Dismiss', { duration: 3000 });
         },
         error: () => {
@@ -168,10 +178,8 @@ export class InstitutionListComponent implements OnInit {
     ref.afterClosed().subscribe((result: InstitutionDialogResult | undefined) => {
       if (!result) return;
       this.apiService.updateInstitution(institution.id, { name: result.name }).subscribe({
-        next: updated => {
-          this.institutions.update(list =>
-            list.map(i => (i.id === updated.id ? updated : i))
-          );
+        next: (updated) => {
+          this.institutions.update((list) => list.map((i) => (i.id === updated.id ? updated : i)));
           this.snackBar.open(`"${updated.name}" updated.`, 'Dismiss', { duration: 3000 });
         },
         error: () => {

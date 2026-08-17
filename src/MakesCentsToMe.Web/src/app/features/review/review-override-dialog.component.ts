@@ -1,11 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import {
-  MAT_DIALOG_DATA,
-  MatDialogModule,
-  MatDialogRef,
-} from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -63,35 +59,38 @@ export interface ReviewOverrideDialogResult {
 
     <mat-dialog-actions align="end">
       <button mat-button (click)="cancel()">Cancel</button>
-      <button
-        mat-flat-button
-        color="primary"
-        [disabled]="overrideForm.invalid"
-        (click)="save()">
+      <button mat-flat-button color="primary" [disabled]="overrideForm.invalid" (click)="save()">
         Save Override
       </button>
     </mat-dialog-actions>
   `,
-  styles: [`
-    .full-width { width: 100%; }
-    .override-form { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
-    .transaction-description {
-      color: var(--mat-sys-on-surface-variant);
-      font-size: 0.875rem;
-      margin: 0 0 16px;
-    }
-  `],
+  styles: [
+    `
+      .full-width {
+        width: 100%;
+      }
+      .override-form {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 8px;
+      }
+      .transaction-description {
+        color: var(--mat-sys-on-surface-variant);
+        font-size: 0.875rem;
+        margin: 0 0 16px;
+      }
+    `,
+  ],
 })
 export class ReviewOverrideDialogComponent {
   protected readonly data: ReviewOverrideDialogData = inject(MAT_DIALOG_DATA);
 
   protected readonly overrideForm = new FormGroup({
-    categoryId: new FormControl<string | null>(
-      this.data.transaction.suggestedCategoryId ?? null
-    ),
+    categoryId: new FormControl<string | null>(this.data.transaction.suggestedCategoryId ?? null),
     normalizedVendor: new FormControl<string>(
       this.data.transaction.suggestedNormalizedVendor ?? '',
-      { nonNullable: true, validators: [Validators.required] }
+      { nonNullable: true, validators: [Validators.required] },
     ),
   });
 

@@ -14,7 +14,12 @@ import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ApiService, ImportProfile, ImportResult, UploadPreviewResponse } from '../../services/api.service';
+import {
+  ApiService,
+  ImportProfile,
+  ImportResult,
+  UploadPreviewResponse,
+} from '../../services/api.service';
 
 type ApplicationField =
   | 'Amount'
@@ -41,13 +46,7 @@ const APPLICATION_FIELDS: { label: string; value: ApplicationField }[] = [
   { label: 'Principal', value: 'Principal' },
 ];
 
-const DATE_FORMAT_PRESETS = [
-  'M/d/yyyy',
-  'M/d/yyyy H:mm',
-  'MM/dd/yyyy',
-  'yyyy-MM-dd',
-  'MM-dd-yyyy',
-];
+const DATE_FORMAT_PRESETS = ['M/d/yyyy', 'M/d/yyyy H:mm', 'MM/dd/yyyy', 'yyyy-MM-dd', 'MM-dd-yyyy'];
 
 @Component({
   selector: 'app-import',
@@ -78,15 +77,28 @@ const DATE_FORMAT_PRESETS = [
 
     <div class="import-container">
       <mat-stepper linear #stepper>
-
         <!-- Step 1: Upload -->
         <mat-step label="Upload CSV" [completed]="csvPreview() !== null">
           <div class="step-content">
             @if (!csvPreview()) {
-              <div class="upload-zone" tabindex="0" role="button" (click)="fileInput.click()" (keydown.enter)="fileInput.click()" (dragover)="onDragOver($event)" (drop)="onFileDrop($event)">
+              <div
+                class="upload-zone"
+                tabindex="0"
+                role="button"
+                (click)="fileInput.click()"
+                (keydown.enter)="fileInput.click()"
+                (dragover)="onDragOver($event)"
+                (drop)="onFileDrop($event)"
+              >
                 <mat-icon class="upload-icon">cloud_upload</mat-icon>
                 <p>Click or drag and drop a CSV file here</p>
-                <input #fileInput type="file" accept=".csv" hidden (change)="onFileSelected($event)" />
+                <input
+                  #fileInput
+                  type="file"
+                  accept=".csv"
+                  hidden
+                  (change)="onFileSelected($event)"
+                />
               </div>
               @if (isUploading()) {
                 <div class="loading-container">
@@ -113,7 +125,7 @@ const DATE_FORMAT_PRESETS = [
                       </ng-container>
                     }
                     <tr mat-header-row *matHeaderRowDef="csvPreview()!.headers"></tr>
-                    <tr mat-row *matRowDef="let row; columns: csvPreview()!.headers;"></tr>
+                    <tr mat-row *matRowDef="let row; columns: csvPreview()!.headers"></tr>
                   </table>
                 </div>
 
@@ -169,8 +181,12 @@ const DATE_FORMAT_PRESETS = [
 
                 <h3>Amount Type</h3>
                 <mat-radio-group [formControl]="amountTypeControl" class="radio-group">
-                  <mat-radio-button value="Single">Single column (positive = credit, negative = debit)</mat-radio-button>
-                  <mat-radio-button value="Split">Split columns (separate debit / credit columns)</mat-radio-button>
+                  <mat-radio-button value="Single"
+                    >Single column (positive = credit, negative = debit)</mat-radio-button
+                  >
+                  <mat-radio-button value="Split"
+                    >Split columns (separate debit / credit columns)</mat-radio-button
+                  >
                 </mat-radio-group>
 
                 <div class="step-actions">
@@ -194,9 +210,16 @@ const DATE_FORMAT_PRESETS = [
                 </mat-radio-group>
 
                 <mat-form-field appearance="outline">
-                  <mat-label>{{ balanceTypeControl.value === 'opening' ? 'Opening Balance' : 'Closing Balance' }}</mat-label>
+                  <mat-label>{{
+                    balanceTypeControl.value === 'opening' ? 'Opening Balance' : 'Closing Balance'
+                  }}</mat-label>
                   <span matTextPrefix>$&nbsp;</span>
-                  <input matInput type="number" [formControl]="balanceAmountControl" placeholder="0.00" />
+                  <input
+                    matInput
+                    type="number"
+                    [formControl]="balanceAmountControl"
+                    placeholder="0.00"
+                  />
                 </mat-form-field>
               </div>
             }
@@ -210,9 +233,15 @@ const DATE_FORMAT_PRESETS = [
               <div class="result-section">
                 <mat-icon class="success-icon">check_circle</mat-icon>
                 <h2>Import Complete</h2>
-                <p>Transactions created: <strong>{{ importResult()!.transactionsCreated }}</strong></p>
-                <p>Duplicates skipped: <strong>{{ importResult()!.duplicatesSkipped }}</strong></p>
-                <p>Rows skipped: <strong>{{ importResult()!.rowsSkipped }}</strong></p>
+                <p>
+                  Transactions created: <strong>{{ importResult()!.transactionsCreated }}</strong>
+                </p>
+                <p>
+                  Duplicates skipped: <strong>{{ importResult()!.duplicatesSkipped }}</strong>
+                </p>
+                <p>
+                  Rows skipped: <strong>{{ importResult()!.rowsSkipped }}</strong>
+                </p>
                 <div class="step-actions">
                   <button mat-button [routerLink]="backRoute()">Back to Institutions</button>
                   <button mat-flat-button routerLink="/review">Review Transactions</button>
@@ -226,126 +255,136 @@ const DATE_FORMAT_PRESETS = [
             }
           </div>
         </mat-step>
-
       </mat-stepper>
     </div>
   `,
-  styles: [`
-    .import-container {
-      max-width: 900px;
-      margin: 24px auto;
-      padding: 0 16px;
-    }
-    .step-content {
-      padding: 24px 0 16px;
-    }
-    .upload-zone {
-      border: 2px dashed var(--mat-sys-outline);
-      border-radius: 8px;
-      padding: 48px;
-      text-align: center;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    .upload-zone:hover {
-      background-color: var(--mat-sys-surface-variant);
-    }
-    .upload-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: var(--mat-sys-primary);
-    }
-    .loading-container {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 16px 0;
-    }
-    .chip-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .header-chip {
-      background: var(--mat-sys-secondary-container);
-      color: var(--mat-sys-on-secondary-container);
-      border-radius: 16px;
-      padding: 4px 12px;
-      font-size: 13px;
-    }
-    .table-container {
-      overflow-x: auto;
-      margin-bottom: 16px;
-    }
-    .preview-table {
-      min-width: 100%;
-    }
-    .step-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-    }
-    .mapping-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .date-format-field {
-      width: 280px;
-      margin-bottom: 16px;
-    }
-    .toggle-row {
-      margin: 16px 0;
-    }
-    .radio-group {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .balance-form {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      max-width: 320px;
-      margin-bottom: 24px;
-    }
-    .profile-notice {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 16px;
-      background: var(--mat-sys-surface-variant);
-      border-radius: 8px;
-      margin-bottom: 16px;
-    }
-    .result-section {
-      text-align: center;
-      padding: 32px;
-    }
-    .success-icon {
-      font-size: 64px;
-      width: 64px;
-      height: 64px;
-      color: green;
-    }
-  `],
+  styles: [
+    `
+      .import-container {
+        max-width: 900px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      .step-content {
+        padding: 24px 0 16px;
+      }
+      .upload-zone {
+        border: 2px dashed var(--mat-sys-outline);
+        border-radius: 8px;
+        padding: 48px;
+        text-align: center;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      .upload-zone:hover {
+        background-color: var(--mat-sys-surface-variant);
+      }
+      .upload-icon {
+        font-size: 48px;
+        width: 48px;
+        height: 48px;
+        color: var(--mat-sys-primary);
+      }
+      .loading-container {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 0;
+      }
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .header-chip {
+        background: var(--mat-sys-secondary-container);
+        color: var(--mat-sys-on-secondary-container);
+        border-radius: 16px;
+        padding: 4px 12px;
+        font-size: 13px;
+      }
+      .table-container {
+        overflow-x: auto;
+        margin-bottom: 16px;
+      }
+      .preview-table {
+        min-width: 100%;
+      }
+      .step-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .mapping-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .date-format-field {
+        width: 280px;
+        margin-bottom: 16px;
+      }
+      .toggle-row {
+        margin: 16px 0;
+      }
+      .radio-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .balance-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 320px;
+        margin-bottom: 24px;
+      }
+      .profile-notice {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: var(--mat-sys-surface-variant);
+        border-radius: 8px;
+        margin-bottom: 16px;
+      }
+      .result-section {
+        text-align: center;
+        padding: 32px;
+      }
+      .success-icon {
+        font-size: 64px;
+        width: 64px;
+        height: 64px;
+        color: green;
+      }
+    `,
+  ],
 })
 export class ImportComponent implements OnInit {
   @ViewChild('stepper') private stepper!: MatStepper;
 
   protected readonly accountId = signal<string>('');
   protected readonly applicationFields = APPLICATION_FIELDS;
-  protected readonly amountTypeControl = new FormControl<'Single' | 'Split'>('Single', { nonNullable: true });
+  protected readonly amountTypeControl = new FormControl<'Single' | 'Split'>('Single', {
+    nonNullable: true,
+  });
   protected readonly balanceAmountControl = new FormControl<number | null>(null);
-  protected readonly balanceProvidedControl = new FormControl<boolean>(false, { nonNullable: true });
-  protected readonly balanceTypeControl = new FormControl<'closing' | 'opening'>('opening', { nonNullable: true });
+  protected readonly balanceProvidedControl = new FormControl<boolean>(false, {
+    nonNullable: true,
+  });
+  protected readonly balanceTypeControl = new FormControl<'closing' | 'opening'>('opening', {
+    nonNullable: true,
+  });
   protected readonly columnMappingComplete = signal(false);
   protected readonly csvPreview = signal<UploadPreviewResponse | null>(null);
-  protected readonly dateFormatControl = new FormControl<string>('M/d/yyyy', { nonNullable: true, validators: [Validators.required] });
+  protected readonly dateFormatControl = new FormControl<string>('M/d/yyyy', {
+    nonNullable: true,
+    validators: [Validators.required],
+  });
   protected readonly dateFormatPresets = DATE_FORMAT_PRESETS;
   protected readonly detectedHeaders = signal<string[]>([]);
   protected readonly existingProfile = signal<ImportProfile | null>(null);
@@ -416,7 +455,9 @@ export class ImportComponent implements OnInit {
   processImport(): void {
     const file = this.uploadedFile();
     if (!file) {
-      this.snackBar.open('No file uploaded. Please go back and upload a CSV.', 'Dismiss', { duration: 4000 });
+      this.snackBar.open('No file uploaded. Please go back and upload a CSV.', 'Dismiss', {
+        duration: 4000,
+      });
       return;
     }
 
@@ -430,7 +471,7 @@ export class ImportComponent implements OnInit {
         : { closingBalance: this.balanceAmountControl.value ?? undefined };
 
     this.apiService.processImport(this.accountId(), file, request).subscribe({
-      next: result => {
+      next: (result) => {
         this.importResult.set(result);
         this.isProcessing.set(false);
       },
@@ -447,7 +488,7 @@ export class ImportComponent implements OnInit {
   }
 
   saveProfile(): void {
-    const columnMappings = this.detectedHeaders().map(header => ({
+    const columnMappings = this.detectedHeaders().map((header) => ({
       applicationField: this.mappingForm.controls[header]?.value ?? 'Ignore',
       csvColumnName: header,
     }));
@@ -463,7 +504,7 @@ export class ImportComponent implements OnInit {
       : this.apiService.saveImportProfile(this.accountId(), request);
 
     save$.subscribe({
-      next: profile => {
+      next: (profile) => {
         this.savedProfile.set(profile);
         this.columnMappingComplete.set(true);
         setTimeout(() => this.stepper.next());
@@ -481,7 +522,7 @@ export class ImportComponent implements OnInit {
       const guessed = this.guessApplicationField(header);
       controls[header] = new FormControl<string>(guessed, { nonNullable: true });
     }
-    Object.keys(this.mappingForm.controls).forEach(key => this.mappingForm.removeControl(key));
+    Object.keys(this.mappingForm.controls).forEach((key) => this.mappingForm.removeControl(key));
     Object.entries(controls).forEach(([key, control]) => this.mappingForm.addControl(key, control));
   }
 
@@ -511,7 +552,7 @@ export class ImportComponent implements OnInit {
 
   private loadExistingProfile(): void {
     this.apiService.getImportProfile(this.accountId()).subscribe({
-      next: profile => {
+      next: (profile) => {
         this.existingProfile.set(profile);
         this.columnMappingComplete.set(true);
         this.savedProfile.set(profile);
@@ -527,7 +568,7 @@ export class ImportComponent implements OnInit {
     this.isUploading.set(true);
     this.uploadedFile.set(file);
     this.apiService.uploadCsv(this.accountId(), file).subscribe({
-      next: response => {
+      next: (response) => {
         this.csvPreview.set(response);
         this.isUploading.set(false);
       },
