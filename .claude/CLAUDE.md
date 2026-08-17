@@ -8,7 +8,7 @@ alerts through a Mint-style dashboard. Single-user, local deployment only.
 
 ## Tech Stack
 - **API:** ASP.NET Core 10 Web API, Entity Framework Core 10, PostgreSQL
-- **Frontend:** Angular 21, standalone components, Angular Material, ApexCharts
+- **Frontend:** Angular 22, standalone components, Angular Material, ApexCharts
 - **Auth:** None — single user, local deployment
 - **AI:** Claude API (vendor normalization, categorization, dedup algorithm derivation)
 - **Testing:** xUnit, Gherkin-style naming, FluentAssertions, Moq
@@ -37,7 +37,7 @@ MakesCentsToMe/
       Models/
         Entities/                 # EF Core entity classes
       Program.cs
-    MakesCentsToMe.Web/           # Angular 21 frontend
+    MakesCentsToMe.Web/           # Angular 22 frontend
   tests/
     MakesCentsToMe.Unit/          # xUnit unit tests, mirroring Features/ structure
     MakesCentsToMe.Integration/   # xUnit integration tests (EF Core in-memory)
@@ -55,7 +55,7 @@ MakesCentsToMe/
 | Product Owner | `product-owner.md` | Backlog, business problems, acceptance criteria |
 | Architect | `architect.md` | Swashbuckle OpenAPI, PlantUML C4 models |
 | Backend Engineer | `backend-engineer.md` | .NET 10 API, import pipeline, Claude integration |
-| Frontend Engineer | `frontend-engineer.md` | Angular 21, dashboards, ApexCharts |
+| Frontend Engineer | `frontend-engineer.md` | Angular 22, dashboards, ApexCharts |
 | QA Engineer | `qa-engineer.md` | Gherkin scenarios, xUnit tests |
 
 ## Workflow
