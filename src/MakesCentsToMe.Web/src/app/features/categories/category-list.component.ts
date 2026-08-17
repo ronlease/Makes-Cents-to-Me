@@ -48,7 +48,6 @@ import {
       </div>
     } @else {
       <table mat-table [dataSource]="categories()" class="full-width">
-
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Name</th>
           <td mat-cell *matCellDef="let row">
@@ -76,14 +75,15 @@ import {
               color="warn"
               [disabled]="row.isDefault"
               [matTooltip]="row.isDefault ? 'Default categories cannot be deleted' : 'Delete'"
-              (click)="deleteCategory(row)">
+              (click)="deleteCategory(row)"
+            >
               <mat-icon>delete</mat-icon>
             </button>
           </td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
 
         <tr class="mat-row" *matNoDataRow>
           <td class="mat-cell no-data-cell" [attr.colspan]="displayedColumns.length">
@@ -93,30 +93,36 @@ import {
       </table>
     }
   `,
-  styles: [`
-    .default-chip {
-      margin-left: 8px;
-      font-size: 11px;
-      height: 20px;
-      background-color: var(--mat-sys-primary-container);
-      color: var(--mat-sys-on-primary-container);
-    }
-    .error-container {
-      padding: 24px;
-      text-align: center;
-    }
-    .full-width { width: 100%; }
-    .loading-container {
-      display: flex;
-      justify-content: center;
-      padding: 48px;
-    }
-    .no-data-cell {
-      padding: 24px;
-      text-align: center;
-    }
-    .spacer { flex: 1 1 auto; }
-  `],
+  styles: [
+    `
+      .default-chip {
+        margin-left: 8px;
+        font-size: 11px;
+        height: 20px;
+        background-color: var(--mat-sys-primary-container);
+        color: var(--mat-sys-on-primary-container);
+      }
+      .error-container {
+        padding: 24px;
+        text-align: center;
+      }
+      .full-width {
+        width: 100%;
+      }
+      .loading-container {
+        display: flex;
+        justify-content: center;
+        padding: 48px;
+      }
+      .no-data-cell {
+        padding: 24px;
+        text-align: center;
+      }
+      .spacer {
+        flex: 1 1 auto;
+      }
+    `,
+  ],
 })
 export class CategoryListComponent implements OnInit {
   protected readonly categories = signal<Category[]>([]);
@@ -133,7 +139,7 @@ export class CategoryListComponent implements OnInit {
     if (!confirm(`Delete "${category.name}"? This cannot be undone.`)) return;
     this.apiService.deleteCategory(category.id).subscribe({
       next: () => {
-        this.categories.update(list => list.filter(c => c.id !== category.id));
+        this.categories.update((list) => list.filter((c) => c.id !== category.id));
         this.snackBar.open(`"${category.name}" deleted.`, 'Dismiss', { duration: 3000 });
       },
       error: () => {
@@ -146,7 +152,7 @@ export class CategoryListComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
     this.apiService.getCategories().subscribe({
-      next: data => {
+      next: (data) => {
         this.categories.set(data);
         this.isLoading.set(false);
       },
@@ -167,8 +173,8 @@ export class CategoryListComponent implements OnInit {
     reference.afterClosed().subscribe((result: CategoryDialogResult | undefined) => {
       if (!result) return;
       this.apiService.createCategory({ name: result.name }).subscribe({
-        next: created => {
-          this.categories.update(list => [...list, created]);
+        next: (created) => {
+          this.categories.update((list) => [...list, created]);
           this.snackBar.open(`"${created.name}" added.`, 'Dismiss', { duration: 3000 });
         },
         error: () => {
@@ -184,10 +190,8 @@ export class CategoryListComponent implements OnInit {
     reference.afterClosed().subscribe((result: CategoryDialogResult | undefined) => {
       if (!result) return;
       this.apiService.updateCategory(category.id, { name: result.name }).subscribe({
-        next: updated => {
-          this.categories.update(list =>
-            list.map(c => (c.id === updated.id ? updated : c))
-          );
+        next: (updated) => {
+          this.categories.update((list) => list.map((c) => (c.id === updated.id ? updated : c)));
           this.snackBar.open(`"${updated.name}" updated.`, 'Dismiss', { duration: 3000 });
         },
         error: () => {

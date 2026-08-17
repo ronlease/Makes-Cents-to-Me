@@ -40,17 +40,24 @@ export interface InstitutionDialogResult {
       <button mat-flat-button (click)="save()" [disabled]="nameControl.invalid">Save</button>
     </mat-dialog-actions>
   `,
-  styles: [`
-    .full-width { width: 100%; min-width: 320px; }
-    mat-dialog-content { padding-top: 8px; }
-  `],
+  styles: [
+    `
+      .full-width {
+        width: 100%;
+        min-width: 320px;
+      }
+      mat-dialog-content {
+        padding-top: 8px;
+      }
+    `,
+  ],
 })
 export class InstitutionDialogComponent {
   protected readonly data = inject<InstitutionDialogData>(MAT_DIALOG_DATA);
-  protected readonly nameControl = new FormControl<string>(
-    this.data.institution?.name ?? '',
-    { nonNullable: true, validators: [Validators.required] }
-  );
+  protected readonly nameControl = new FormControl<string>(this.data.institution?.name ?? '', {
+    nonNullable: true,
+    validators: [Validators.required],
+  });
 
   private readonly dialogRef = inject(MatDialogRef<InstitutionDialogComponent>);
 

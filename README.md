@@ -5,7 +5,7 @@ Personal spending intelligence and trend analysis tool. Ingests CSV exports from
 ## Tech Stack
 
 - **API:** ASP.NET Core 10, Entity Framework Core 10, PostgreSQL 17
-- **Frontend:** Angular 21, Angular Material, ApexCharts
+- **Frontend:** Angular 22, Angular Material, ApexCharts
 - **AI:** Claude API (vendor normalization, categorization)
 - **Testing:** xUnit, FluentAssertions, Moq
 - **Infrastructure:** Docker Compose
@@ -13,7 +13,7 @@ Personal spending intelligence and trend analysis tool. Ingests CSV exports from
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/)
-- [Node.js 22](https://nodejs.org/) with npm
+- [Node.js](https://nodejs.org/) 22.22.3+ or 24.15.0+ with npm (required by Angular 22)
 - [Docker](https://www.docker.com/) (for PostgreSQL)
 
 ## Getting Started
@@ -71,7 +71,7 @@ MakesCentsToMe/
         Data/                    # EF Core DbContext, migrations, configurations
       Models/
         Entities/                # EF Core entity classes
-    MakesCentsToMe.Web/          # Angular 21 frontend
+    MakesCentsToMe.Web/          # Angular 22 frontend
       src/app/
         features/                # Feature components
         services/                # API and theme services

@@ -57,11 +57,23 @@ export interface AccountDialogResult {
       <button mat-flat-button (click)="save()" [disabled]="form.invalid">Save</button>
     </mat-dialog-actions>
   `,
-  styles: [`
-    .full-width { width: 100%; min-width: 360px; }
-    .form-grid { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
-    mat-dialog-content { padding-top: 8px; }
-  `],
+  styles: [
+    `
+      .full-width {
+        width: 100%;
+        min-width: 360px;
+      }
+      .form-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding-top: 8px;
+      }
+      mat-dialog-content {
+        padding-top: 8px;
+      }
+    `,
+  ],
 })
 export class AccountDialogComponent {
   protected readonly accountTypeOptions: { label: string; value: AccountType }[] = [
@@ -74,14 +86,14 @@ export class AccountDialogComponent {
   protected readonly data = inject<AccountDialogData>(MAT_DIALOG_DATA);
 
   protected readonly form = new FormGroup({
-    accountType: new FormControl<AccountType>(
-      this.data.account?.accountType ?? 'Checking',
-      { nonNullable: true, validators: [Validators.required] }
-    ),
-    name: new FormControl<string>(
-      this.data.account?.name ?? '',
-      { nonNullable: true, validators: [Validators.required] }
-    ),
+    accountType: new FormControl<AccountType>(this.data.account?.accountType ?? 'Checking', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
+    name: new FormControl<string>(this.data.account?.name ?? '', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
   });
 
   private readonly dialogRef = inject(MatDialogRef<AccountDialogComponent>);

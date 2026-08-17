@@ -47,7 +47,8 @@ import {
         mat-flat-button
         color="primary"
         [disabled]="isAcceptingAll() || pendingTransactions().length === 0"
-        (click)="acceptAll()">
+        (click)="acceptAll()"
+      >
         @if (isAcceptingAll()) {
           <mat-spinner diameter="20" class="inline-spinner"></mat-spinner>
         } @else {
@@ -80,18 +81,19 @@ import {
       </div>
     } @else {
       <table mat-table [dataSource]="pagedTransactions()" class="full-width">
-
         <ng-container matColumnDef="date">
           <th mat-header-cell *matHeaderCellDef>Date</th>
           <td mat-cell *matCellDef="let row" [ngClass]="rowClass(row)">
-            {{ row.date | date:'mediumDate' }}
+            {{ row.date | date: 'mediumDate' }}
           </td>
         </ng-container>
 
         <ng-container matColumnDef="description">
           <th mat-header-cell *matHeaderCellDef>Raw Description</th>
           <td mat-cell *matCellDef="let row" [ngClass]="rowClass(row)">
-            <span class="description-text" [matTooltip]="row.description">{{ row.description }}</span>
+            <span class="description-text" [matTooltip]="row.description">{{
+              row.description
+            }}</span>
           </td>
         </ng-container>
 
@@ -114,7 +116,7 @@ import {
           <td mat-cell *matCellDef="let row" [ngClass]="rowClass(row)">
             @if (row.confidence !== null && row.confidence !== undefined) {
               <span class="confidence-badge" [ngClass]="confidenceClass(row.confidence)">
-                {{ row.confidence | percent:'1.0-0' }}
+                {{ row.confidence | percent: '1.0-0' }}
               </span>
             } @else {
               <span class="confidence-badge confidence-none">—</span>
@@ -156,14 +158,16 @@ import {
                 color="primary"
                 matTooltip="Accept suggestion"
                 [disabled]="isRowBusy(row.id)"
-                (click)="acceptTransaction(row)">
+                (click)="acceptTransaction(row)"
+              >
                 <mat-icon>check_circle</mat-icon>
               </button>
               <button
                 mat-icon-button
                 matTooltip="Override vendor or category"
                 [disabled]="isRowBusy(row.id)"
-                (click)="openOverrideDialog(row)">
+                (click)="openOverrideDialog(row)"
+              >
                 <mat-icon>edit</mat-icon>
               </button>
             } @else {
@@ -173,7 +177,7 @@ import {
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
 
         <tr class="mat-row" *matNoDataRow>
           <td class="mat-cell no-data-cell" [attr.colspan]="displayedColumns.length">
@@ -188,86 +192,154 @@ import {
         [pageSizeOptions]="pageSizeOptions"
         [pageIndex]="currentPageIndex()"
         (page)="onPageChange($event)"
-        showFirstLastButtons>
+        showFirstLastButtons
+      >
       </mat-paginator>
     }
   `,
-  styles: [`
-    .amount-credit { color: #2e7d32; }
-    .amount-debit { color: inherit; }
-    .completed-label { color: var(--mat-sys-on-surface-variant); font-size: 0.8rem; padding: 0 8px; }
+  styles: [
+    `
+      .amount-credit {
+        color: #2e7d32;
+      }
+      .amount-debit {
+        color: inherit;
+      }
+      .completed-label {
+        color: var(--mat-sys-on-surface-variant);
+        font-size: 0.8rem;
+        padding: 0 8px;
+      }
 
-    .confidence-badge {
-      border-radius: 12px;
-      display: inline-block;
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 2px 10px;
-    }
-    .confidence-high { background-color: #c8e6c9; color: #1b5e20; }
-    .confidence-medium { background-color: #fff9c4; color: #f57f17; }
-    .confidence-low { background-color: #ffcdd2; color: #b71c1c; }
-    .confidence-none { background-color: var(--mat-sys-surface-variant); color: var(--mat-sys-on-surface-variant); }
+      .confidence-badge {
+        border-radius: 12px;
+        display: inline-block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 10px;
+      }
+      .confidence-high {
+        background-color: #c8e6c9;
+        color: #1b5e20;
+      }
+      .confidence-medium {
+        background-color: #fff9c4;
+        color: #f57f17;
+      }
+      .confidence-low {
+        background-color: #ffcdd2;
+        color: #b71c1c;
+      }
+      .confidence-none {
+        background-color: var(--mat-sys-surface-variant);
+        color: var(--mat-sys-on-surface-variant);
+      }
 
-    .description-text {
-      display: inline-block;
-      max-width: 280px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      vertical-align: middle;
-      white-space: nowrap;
-    }
+      .description-text {
+        display: inline-block;
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
 
-    .error-container { padding: 24px; text-align: center; }
+      .error-container {
+        padding: 24px;
+        text-align: center;
+      }
 
-    .full-width { width: 100%; }
+      .full-width {
+        width: 100%;
+      }
 
-    .inline-spinner { display: inline-block; margin-right: 8px; vertical-align: middle; }
+      .inline-spinner {
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
 
-    .loading-container { display: flex; justify-content: center; padding: 48px; }
+      .loading-container {
+        display: flex;
+        justify-content: center;
+        padding: 48px;
+      }
 
-    .no-data-cell { padding: 24px; text-align: center; }
+      .no-data-cell {
+        padding: 24px;
+        text-align: center;
+      }
 
-    .pending-badge {
-      background: var(--mat-sys-primary-container);
-      border-radius: 12px;
-      color: var(--mat-sys-on-primary-container);
-      font-size: 0.8rem;
-      margin-left: 12px;
-      padding: 2px 10px;
-    }
+      .pending-badge {
+        background: var(--mat-sys-primary-container);
+        border-radius: 12px;
+        color: var(--mat-sys-on-primary-container);
+        font-size: 0.8rem;
+        margin-left: 12px;
+        padding: 2px 10px;
+      }
 
-    .row-completed { opacity: 0.55; }
+      .row-completed {
+        opacity: 0.55;
+      }
 
-    .spacer { flex: 1 1 auto; }
+      .spacer {
+        flex: 1 1 auto;
+      }
 
-    .status-badge {
-      border-radius: 12px;
-      display: inline-block;
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 2px 10px;
-    }
-    .status-pending { background-color: #e3f2fd; color: #0d47a1; }
-    .status-pending-analysis { background-color: #f3e5f5; color: #4a148c; }
-    .status-accepted { background-color: #c8e6c9; color: #1b5e20; }
-    .status-overridden { background-color: #fff9c4; color: #f57f17; }
-    .status-other { background-color: var(--mat-sys-surface-variant); color: var(--mat-sys-on-surface-variant); }
+      .status-badge {
+        border-radius: 12px;
+        display: inline-block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 10px;
+      }
+      .status-pending {
+        background-color: #e3f2fd;
+        color: #0d47a1;
+      }
+      .status-pending-analysis {
+        background-color: #f3e5f5;
+        color: #4a148c;
+      }
+      .status-accepted {
+        background-color: #c8e6c9;
+        color: #1b5e20;
+      }
+      .status-overridden {
+        background-color: #fff9c4;
+        color: #f57f17;
+      }
+      .status-other {
+        background-color: var(--mat-sys-surface-variant);
+        color: var(--mat-sys-on-surface-variant);
+      }
 
-    .summary-accepted { color: #2e7d32; }
-    .summary-bar {
-      align-items: center;
-      background: var(--mat-sys-surface-variant);
-      display: flex;
-      font-size: 0.85rem;
-      gap: 12px;
-      padding: 8px 16px;
-    }
-    .summary-divider { color: var(--mat-sys-outline); }
-    .summary-overridden { color: #e65100; }
-    .summary-pending { color: #0d47a1; }
-    .summary-pending-analysis { color: #4a148c; }
-  `],
+      .summary-accepted {
+        color: #2e7d32;
+      }
+      .summary-bar {
+        align-items: center;
+        background: var(--mat-sys-surface-variant);
+        display: flex;
+        font-size: 0.85rem;
+        gap: 12px;
+        padding: 8px 16px;
+      }
+      .summary-divider {
+        color: var(--mat-sys-outline);
+      }
+      .summary-overridden {
+        color: #e65100;
+      }
+      .summary-pending {
+        color: #0d47a1;
+      }
+      .summary-pending-analysis {
+        color: #4a148c;
+      }
+    `,
+  ],
 })
 export class ReviewQueueComponent implements OnInit {
   protected readonly currentPageIndex = signal(0);
@@ -296,13 +368,13 @@ export class ReviewQueueComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
 
   protected acceptedCount(): number {
-    return this.allTransactions().filter(t => t.status === 'Accepted').length;
+    return this.allTransactions().filter((t) => t.status === 'Accepted').length;
   }
 
   acceptAll(): void {
     this.isAcceptingAll.set(true);
     this.apiService.acceptAllTransactions().subscribe({
-      next: count => {
+      next: (count) => {
         this.isAcceptingAll.set(false);
         this.snackBar.open(`Accepted ${count} transaction(s).`, 'Dismiss', { duration: 3000 });
         this.loadReviewQueue();
@@ -317,11 +389,9 @@ export class ReviewQueueComponent implements OnInit {
   acceptTransaction(transaction: ReviewTransaction): void {
     this.markRowBusy(transaction.id, true);
     this.apiService.acceptTransaction(transaction.id).subscribe({
-      next: updated => {
+      next: (updated) => {
         this.markRowBusy(transaction.id, false);
-        this.allTransactions.update(list =>
-          list.map(t => (t.id === updated.id ? updated : t))
-        );
+        this.allTransactions.update((list) => list.map((t) => (t.id === updated.id ? updated : t)));
         this.snackBar.open('Transaction accepted.', 'Dismiss', { duration: 2500 });
       },
       error: () => {
@@ -356,7 +426,7 @@ export class ReviewQueueComponent implements OnInit {
     this.errorMessage.set(null);
     this.currentPageIndex.set(0);
     this.apiService.getReviewQueue().subscribe({
-      next: data => {
+      next: (data) => {
         this.allTransactions.set(data);
         this.isLoading.set(false);
       },
@@ -370,7 +440,7 @@ export class ReviewQueueComponent implements OnInit {
   ngOnInit(): void {
     this.loadReviewQueue();
     this.apiService.getCategories().subscribe({
-      next: data => this.categories.set(data),
+      next: (data) => this.categories.set(data),
     });
   }
 
@@ -388,10 +458,10 @@ export class ReviewQueueComponent implements OnInit {
       if (!result) return;
       this.markRowBusy(transaction.id, true);
       this.apiService.overrideTransaction(transaction.id, result).subscribe({
-        next: updated => {
+        next: (updated) => {
           this.markRowBusy(transaction.id, false);
-          this.allTransactions.update(list =>
-            list.map(t => (t.id === updated.id ? updated : t))
+          this.allTransactions.update((list) =>
+            list.map((t) => (t.id === updated.id ? updated : t)),
           );
           this.snackBar.open('Transaction overridden.', 'Dismiss', { duration: 2500 });
         },
@@ -409,19 +479,19 @@ export class ReviewQueueComponent implements OnInit {
   }
 
   protected pendingAnalysisCount(): number {
-    return this.allTransactions().filter(t => t.status === 'PendingAnalysis').length;
+    return this.allTransactions().filter((t) => t.status === 'PendingAnalysis').length;
   }
 
   protected pendingCount(): number {
-    return this.allTransactions().filter(t => t.status === 'PendingReview').length;
+    return this.allTransactions().filter((t) => t.status === 'PendingReview').length;
   }
 
   protected pendingTransactions(): ReviewTransaction[] {
-    return this.allTransactions().filter(t => this.isPending(t));
+    return this.allTransactions().filter((t) => this.isPending(t));
   }
 
   protected overriddenCount(): number {
-    return this.allTransactions().filter(t => t.status === 'Overridden').length;
+    return this.allTransactions().filter((t) => t.status === 'Overridden').length;
   }
 
   protected rowClass(transaction: ReviewTransaction): string {
@@ -445,7 +515,7 @@ export class ReviewQueueComponent implements OnInit {
   }
 
   private markRowBusy(transactionId: string, busy: boolean): void {
-    this.busyRowIds.update(set => {
+    this.busyRowIds.update((set) => {
       const next = new Set(set);
       if (busy) {
         next.add(transactionId);

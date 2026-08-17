@@ -4,7 +4,7 @@
 title Component Diagram - API Container
 
 ContainerDb(db, "Database", "PostgreSQL", "Institutions, accounts, import profiles, transactions, categories, review queue")
-Container(web, "Angular Web App", "Angular 21", "Frontend SPA")
+Container(web, "Angular Web App", "Angular 22", "Frontend SPA")
 System_Ext(claude, "Claude API", "Vendor normalization and categorization")
 
 Container_Boundary(api, "API - ASP.NET Core 10") {

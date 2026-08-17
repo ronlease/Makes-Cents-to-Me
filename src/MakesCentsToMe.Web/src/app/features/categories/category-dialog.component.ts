@@ -40,17 +40,24 @@ export interface CategoryDialogResult {
       <button mat-flat-button (click)="save()" [disabled]="nameControl.invalid">Save</button>
     </mat-dialog-actions>
   `,
-  styles: [`
-    .full-width { width: 100%; min-width: 320px; }
-    mat-dialog-content { padding-top: 8px; }
-  `],
+  styles: [
+    `
+      .full-width {
+        width: 100%;
+        min-width: 320px;
+      }
+      mat-dialog-content {
+        padding-top: 8px;
+      }
+    `,
+  ],
 })
 export class CategoryDialogComponent {
   protected readonly data = inject<CategoryDialogData>(MAT_DIALOG_DATA);
-  protected readonly nameControl = new FormControl<string>(
-    this.data.category?.name ?? '',
-    { nonNullable: true, validators: [Validators.required] }
-  );
+  protected readonly nameControl = new FormControl<string>(this.data.category?.name ?? '', {
+    nonNullable: true,
+    validators: [Validators.required],
+  });
 
   private readonly dialogRef = inject(MatDialogRef<CategoryDialogComponent>);
 
