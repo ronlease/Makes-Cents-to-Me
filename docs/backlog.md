@@ -1024,6 +1024,106 @@ Feature: Main dashboard
 
 ---
 
+## Epic 9: Technical Health
+
+These items address structural and dependency-level debt. They do not add user-facing
+features, but they protect the correctness and longevity of everything that does.
+
+---
+
+### [MCM-022] Establish Integration Test Coverage
+
+**Status:** Backlog
+**Priority:** High
+
+#### Business Problem
+The `MakesCentsToMe.Integration` project exists and builds, but contains no test source
+files -- only generated build artifacts. Every test run reports "No test is available" for
+this assembly, which reads as a passing run rather than an empty one. The project therefore
+provides a false sense of safety: all 151 currently passing tests are unit tests exercising
+components in isolation, so nothing verifies that the EF Core mappings, the import
+pipeline, and the API endpoints work together end to end. Import is the primary way data
+enters the system and is the most integration-sensitive path in the application; a
+regression in wiring between parser, dedup, and persistence would ship undetected.
+
+#### Acceptance Criteria
+```gherkin
+Feature: Integration test coverage
+
+  Scenario: Integration assembly reports discovered tests
+    Given the solution has been built
+    When I run the full test suite
+    Then the MakesCentsToMe.Integration assembly reports a non-zero discovered test count
+    And no assembly reports "No test is available"
+
+  Scenario: Import pipeline is covered end to end
+    Given an institution, an account, and a saved import profile exist in the test database
+    When a CSV file is imported through the pipeline
+    Then the parsed transactions are persisted with their raw data preserved verbatim
+    And the resulting transactions are retrievable through the API layer
+
+  Scenario: Deduplication is verified against a real database context
+    Given transactions already exist for an account in the test database
+    When a CSV containing overlapping rows is imported
+    Then duplicate rows are skipped
+    And the reported new and duplicate counts match the persisted state
+
+  Scenario: Endpoint contracts are exercised through the test host
+    Given the API is running under the ASP.NET Core test host
+    When each versioned endpoint under /api/v1/ is called
+    Then it returns its documented status code and response shape
+
+  Scenario: An empty test project cannot pass silently
+    Given a test project contains no test source files
+    When the test suite runs in continuous integration
+    Then the run fails rather than reporting success
+```
+
+---
+
+### [MCM-023] Migrate Off Deprecated @angular/animations Package
+
+**Status:** Backlog
+**Priority:** Medium
+
+#### Business Problem
+Angular 22 deprecates the `@angular/animations` package in favor of the built-in
+`animate.enter` and `animate.leave` primitives. The application currently depends on the
+package and calls `provideAnimationsAsync()` in `app.config.ts`. The deprecation is
+harmless today, but the package will be removed in a future Angular major, at which point
+the dependency becomes a hard upgrade blocker. Addressing it while the surface area is
+small -- a single provider call and the Angular Material components that rely on it --
+avoids a forced, larger migration later under time pressure.
+
+#### Acceptance Criteria
+```gherkin
+Feature: Migration away from the deprecated animations package
+
+  Scenario: Application no longer depends on the deprecated package
+    Given the migration is complete
+    When I inspect package.json
+    Then "@angular/animations" is not listed as a direct dependency
+    And no deprecation warning for it appears during npm install
+
+  Scenario: Angular Material components still animate correctly
+    Given the migration is complete
+    When I open a dialog, expand a menu, and open a select in the application
+    Then each component animates as it did before the migration
+    And no console errors relating to missing animation providers are emitted
+
+  Scenario: Application configuration no longer calls the deprecated provider
+    Given the migration is complete
+    When I inspect app.config.ts
+    Then provideAnimationsAsync is no longer referenced
+
+  Scenario: Build and tests remain clean after migration
+    Given the migration is complete
+    When I run ng build, ng test, and ng lint
+    Then all three succeed with no new warnings or errors
+```
+
+---
+
 ## Backlog Summary
 
 | ID      | Title                                           | Priority | Status  |
@@ -1049,3 +1149,5 @@ Feature: Main dashboard
 | MCM-019 | Main Dashboard (placeholder)                    | Low      | Backlog |
 | MCM-020 | Light and Dark Mode Theme Support               | High     | Done    |
 | MCM-021 | Redesign Frontend UI                            | Medium   | Backlog |
+| MCM-022 | Establish Integration Test Coverage             | High     | Backlog |
+| MCM-023 | Migrate Off Deprecated @angular/animations      | Medium   | Backlog |
