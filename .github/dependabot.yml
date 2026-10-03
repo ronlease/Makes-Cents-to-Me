@@ -1,41 +1,13 @@
 version: 2
 
 updates:
-  # NuGet packages for the API project
+  # NuGet packages for all .NET projects, grouped together so EF Core packages
+  # move in lockstep across Api, Unit, and Integration
   - package-ecosystem: nuget
-    directory: /src/MakesCentsToMe.Api
-    schedule:
-      interval: weekly
-    target-branch: main
-    open-pull-requests-limit: 5
-    groups:
-      efcore:
-        patterns:
-          - "Microsoft.EntityFrameworkCore*"
-          - "Npgsql.EntityFrameworkCore*"
-      aspnetcore:
-        patterns:
-          - "Microsoft.AspNetCore*"
-
-  # NuGet packages for the Unit test project — kept in lockstep with Api versions
-  - package-ecosystem: nuget
-    directory: /tests/MakesCentsToMe.Unit
-    schedule:
-      interval: weekly
-    target-branch: main
-    open-pull-requests-limit: 5
-    groups:
-      efcore:
-        patterns:
-          - "Microsoft.EntityFrameworkCore*"
-          - "Npgsql.EntityFrameworkCore*"
-      aspnetcore:
-        patterns:
-          - "Microsoft.AspNetCore*"
-
-  # NuGet packages for the Integration test project — kept in lockstep with Api versions
-  - package-ecosystem: nuget
-    directory: /tests/MakesCentsToMe.Integration
+    directories:
+      - /src/MakesCentsToMe.Api
+      - /tests/MakesCentsToMe.Unit
+      - /tests/MakesCentsToMe.Integration
     schedule:
       interval: weekly
     target-branch: main
