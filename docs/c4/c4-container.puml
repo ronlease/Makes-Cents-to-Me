@@ -7,8 +7,8 @@ Person(user, "User", "Single local user")
 
 System_Boundary(app, "Makes Cents To Me") {
     Container(web, "Angular Web App", "Angular 22", "Institution/account management, CSV import wizard, category management, and review queue")
-    Container(api, "API", "ASP.NET Core 10", "REST API for institutions, accounts, import pipeline, categories, and review queue")
-    ContainerDb(db, "Database", "PostgreSQL", "Stores institutions, accounts, import profiles, column mappings, transactions, and categories")
+    Container(api, "API", "ASP.NET Core 10", "REST API for institutions, accounts, import pipeline, categories, learned rules, and review queue")
+    ContainerDb(db, "Database", "PostgreSQL", "Stores institutions, accounts, import profiles, column mappings, transactions, categories, and learned rules")
 }
 
 System_Ext(claude, "Claude API", "Vendor normalization and categorization")

@@ -15,6 +15,9 @@ public class Transaction
     public decimal Fees { get; set; }
     public Guid Id { get; set; }
     public decimal Interest { get; set; }
+    public bool IsAutoCategorized { get; set; }
+    public LearnedRule? LearnedRule { get; set; }
+    public Guid? LearnedRuleId { get; set; }
     public string? NormalizedVendor { get; set; }
     public decimal Principal { get; set; }
     public string? RawCategory { get; set; }

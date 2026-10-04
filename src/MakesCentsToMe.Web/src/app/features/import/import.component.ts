@@ -239,6 +239,12 @@ const DATE_FORMAT_PRESETS = ['M/d/yyyy', 'M/d/yyyy H:mm', 'MM/dd/yyyy', 'yyyy-MM
                 <p>
                   Duplicates skipped: <strong>{{ importResult()!.duplicatesSkipped }}</strong>
                 </p>
+                @if (importResult()!.autoCategorizedCount) {
+                  <p>
+                    <strong>{{ importResult()!.autoCategorizedCount }}</strong> auto-categorized by
+                    learned rules
+                  </p>
+                }
                 <p>
                   Rows skipped: <strong>{{ importResult()!.rowsSkipped }}</strong>
                 </p>

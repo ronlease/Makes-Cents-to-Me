@@ -18,7 +18,7 @@ public record ProcessImportRequest(
     decimal? ClosingBalance,
     decimal? OpeningBalance);
 
-public record ProcessImportResponse(int DuplicatesSkipped, int RowsSkipped, int TransactionsCreated);
+public record ProcessImportResponse(int AutoCategorizedCount, int DuplicatesSkipped, int RowsSkipped, int TransactionsCreated);
 
 public record SaveImportProfileRequest(
     AmountType AmountType,

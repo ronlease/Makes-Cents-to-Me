@@ -1,11 +1,12 @@
 using MakesCentsToMe.Api.Common;
+using MakesCentsToMe.Api.Features.LearnedRules;
 using MakesCentsToMe.Api.Infrastructure.Data;
 using MakesCentsToMe.Api.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace MakesCentsToMe.Api.Features.Review;
 
-public class ReviewService(AppDbContext dbContext) : IReviewService
+public class ReviewService(AppDbContext dbContext, ILearnedRuleService learnedRuleService) : IReviewService
 {
     public async Task<ApiResponse<ReviewTransactionResponse>> AcceptAsync(Guid transactionId)
     {
@@ -76,7 +77,7 @@ public class ReviewService(AppDbContext dbContext) : IReviewService
             .ThenBy(t => t.Description)
             .ToListAsync();
 
-        var responses = transactions.Select(MapToResponse).ToList();
+        var responses = transactions.Select(transaction => MapToResponse(transaction)).ToList();
 
         return ApiResponse<IReadOnlyList<ReviewTransactionResponse>>.Ok(responses);
     }
@@ -116,10 +117,14 @@ public class ReviewService(AppDbContext dbContext) : IReviewService
 
         await dbContext.SaveChangesAsync();
 
-        return ApiResponse<ReviewTransactionResponse>.Ok(MapToResponse(transaction));
+        var suggestion = await learnedRuleService.BuildSuggestionAsync(transaction);
+
+        return ApiResponse<ReviewTransactionResponse>.Ok(MapToResponse(transaction, suggestion));
     }
 
-    private static ReviewTransactionResponse MapToResponse(Transaction transaction) =>
+    private static ReviewTransactionResponse MapToResponse(
+        Transaction transaction,
+        LearnedRuleSuggestion? learnedRuleSuggestion = null) =>
         new(
             AccountName: transaction.Account.Name,
             Amount: transaction.Amount,
@@ -129,6 +134,8 @@ public class ReviewService(AppDbContext dbContext) : IReviewService
             Description: transaction.Description,
             Id: transaction.Id,
             InstitutionName: transaction.Account.Institution.Name,
+            IsAutoCategorized: transaction.IsAutoCategorized,
+            LearnedRuleSuggestion: learnedRuleSuggestion,
             NormalizedVendor: transaction.NormalizedVendor,
             RawCategory: transaction.RawCategory,
             Status: transaction.Status.ToString(),

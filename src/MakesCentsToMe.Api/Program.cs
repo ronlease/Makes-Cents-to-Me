@@ -2,6 +2,7 @@ using MakesCentsToMe.Api.Features.Accounts;
 using MakesCentsToMe.Api.Features.Categories;
 using MakesCentsToMe.Api.Features.Import;
 using MakesCentsToMe.Api.Features.Institutions;
+using MakesCentsToMe.Api.Features.LearnedRules;
 using MakesCentsToMe.Api.Features.Review;
 using MakesCentsToMe.Api.Infrastructure.Claude;
 using MakesCentsToMe.Api.Infrastructure.Data;
@@ -23,13 +24,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Feature services
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<IClaudeAnalysisService, ClaudeAnalysisService>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<IInstitutionService, InstitutionService>();
+builder.Services.AddScoped<ILearnedRuleService, LearnedRuleService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 
 // Claude API HTTP client
-builder.Services.AddHttpClient<ClaudeAnalysisService>(client =>
+builder.Services.AddHttpClient<IClaudeAnalysisService, ClaudeAnalysisService>(client =>
 {
     client.BaseAddress = new Uri("https://api.anthropic.com/");
     client.DefaultRequestHeaders.Add("x-api-key", builder.Configuration["Claude:ApiKey"]);
@@ -89,6 +90,7 @@ app.MapAccountEndpoints();
 app.MapCategoryEndpoints();
 app.MapImportEndpoints();
 app.MapInstitutionEndpoints();
+app.MapLearnedRuleEndpoints();
 app.MapReviewEndpoints();
 
 app.Run();

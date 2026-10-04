@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ColumnMapping> ColumnMappings { get; set; }
     public DbSet<ImportProfile> ImportProfiles { get; set; }
     public DbSet<Institution> Institutions { get; set; }
+    public DbSet<LearnedRule> LearnedRules { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

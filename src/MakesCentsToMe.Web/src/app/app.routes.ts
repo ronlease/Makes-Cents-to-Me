@@ -28,6 +28,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'learned-rules',
+    loadComponent: () =>
+      import('./features/learned-rules/learned-rule-list.component').then(
+        m => m.LearnedRuleListComponent
+      ),
+  },
+  {
     path: 'accounts/:accountId/import',
     loadComponent: () =>
       import('./features/import/import.component').then(

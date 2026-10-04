@@ -593,6 +593,9 @@ Feature: Claude transaction analysis
     And the user can retry analysis later
 ```
 
+**Note:** The scenario "Claude analysis respects existing learned rules" was not
+implemented with this item; it was completed as part of MCM-011.
+
 ---
 
 ## Epic 5: Review Queue
@@ -649,7 +652,7 @@ Feature: Transaction review queue
 
 ### [MCM-011] Promote Corrections to Learned Rules
 
-**Status:** Backlog
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -689,6 +692,23 @@ Feature: Learned rules from corrections
     Then it is removed
     And future matching transactions are sent to Claude for analysis again
 ```
+
+#### Implementation Notes
+Product decisions made during implementation:
+- Transactions matched by a learned rule are committed directly and skip the review
+  queue; they are flagged `IsAutoCategorized`.
+- Rules match by case-insensitive prefix with a word boundary; when several rules match,
+  the longest pattern wins.
+- Rules are global, not per account.
+- Editing or deleting a rule only affects future imports; already-committed transactions
+  are not changed.
+- The suggested rule is not stored, so dismissing it ("Not now") discards it.
+
+Possible Follow-ups (not yet backlog items):
+- A "contains" match type in addition to prefix matching
+- Previewing how many existing transactions a pattern would match
+- Offering to apply a newly created rule to rows still pending in the review queue
+- Including learned rules in the Claude prompt
 
 ---
 
@@ -1138,7 +1158,7 @@ Feature: Migration away from the deprecated animations package
 | MCM-008 | Manage Canonical Categories                     | High     | Done    |
 | MCM-009 | Claude Analyzes Transactions                    | High     | Done    |
 | MCM-010 | Review Queue for Imported Transactions          | High     | Done    |
-| MCM-011 | Promote Corrections to Learned Rules            | High     | Backlog |
+| MCM-011 | Promote Corrections to Learned Rules            | High     | Done    |
 | MCM-012 | View and Search Transactions                    | Medium   | Backlog |
 | MCM-013 | Spending by Category Report (placeholder)       | Medium   | Backlog |
 | MCM-014 | Spending Trend Over Time (placeholder)          | Medium   | Backlog |

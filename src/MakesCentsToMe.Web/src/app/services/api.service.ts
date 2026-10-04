@@ -78,6 +78,7 @@ export interface ImportProcessRequest {
 }
 
 export interface ImportResult {
+  autoCategorizedCount: number;
   duplicatesSkipped: number;
   rowsSkipped: number;
   transactionsCreated: number;
@@ -97,6 +98,38 @@ export interface InstitutionUpdateRequest {
   name: string;
 }
 
+export interface LearnedRule {
+  categoryId: string;
+  categoryName: string;
+  createdAt: string;
+  id: string;
+  normalizedVendor: string;
+  pattern: string;
+  updatedAt: string;
+}
+
+export interface LearnedRuleCreateRequest {
+  categoryId: string;
+  normalizedVendor: string;
+  pattern: string;
+  sourceTransactionId: string | null;
+}
+
+export interface LearnedRuleSuggestion {
+  categoryId: string;
+  categoryName: string;
+  existingLearnedRuleId: string | null;
+  normalizedVendor: string;
+  pattern: string;
+  sourceTransactionId: string;
+}
+
+export interface LearnedRuleUpdateRequest {
+  categoryId: string;
+  normalizedVendor: string;
+  pattern: string;
+}
+
 export interface OverrideTransactionRequest {
   categoryId: string | null;
   normalizedVendor: string;
@@ -111,6 +144,8 @@ export interface ReviewTransaction {
   description: string;
   id: string;
   institutionName: string;
+  isAutoCategorized: boolean;
+  learnedRuleSuggestion: LearnedRuleSuggestion | null;
   normalizedVendor: string | null;
   rawCategory: string | null;
   status: string;
@@ -217,6 +252,29 @@ export class ApiService {
     formData.append('file', file);
     return this.http
       .post<ApiResponse<UploadPreviewResponse>>(`${this.baseUrl}/api/v1/accounts/${accountId}/import/upload`, formData)
+      .pipe(map(response => response.data));
+  }
+
+  // Learned rule endpoints
+  createLearnedRule(request: LearnedRuleCreateRequest): Observable<LearnedRule> {
+    return this.http
+      .post<ApiResponse<LearnedRule>>(`${this.baseUrl}/api/v1/learned-rules`, request)
+      .pipe(map(response => response.data));
+  }
+
+  deleteLearnedRule(learnedRuleId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/api/v1/learned-rules/${learnedRuleId}`);
+  }
+
+  getLearnedRules(): Observable<LearnedRule[]> {
+    return this.http
+      .get<ApiResponse<LearnedRule[]>>(`${this.baseUrl}/api/v1/learned-rules`)
+      .pipe(map(response => response.data ?? []));
+  }
+
+  updateLearnedRule(learnedRuleId: string, request: LearnedRuleUpdateRequest): Observable<LearnedRule> {
+    return this.http
+      .put<ApiResponse<LearnedRule>>(`${this.baseUrl}/api/v1/learned-rules/${learnedRuleId}`, request)
       .pipe(map(response => response.data));
   }
 

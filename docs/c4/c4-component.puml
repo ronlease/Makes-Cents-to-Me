@@ -3,7 +3,7 @@
 
 title Component Diagram - API Container
 
-ContainerDb(db, "Database", "PostgreSQL", "Institutions, accounts, import profiles, transactions, categories, review queue")
+ContainerDb(db, "Database", "PostgreSQL", "Institutions, accounts, import profiles, transactions, categories, learned rules, review queue")
 Container(web, "Angular Web App", "Angular 22", "Frontend SPA")
 System_Ext(claude, "Claude API", "Vendor normalization and categorization")
 
@@ -11,9 +11,10 @@ Container_Boundary(api, "API - ASP.NET Core 10") {
     Component(institutions, "Institutions", "Minimal API + InstitutionService", "CRUD operations for financial institutions")
     Component(accounts, "Accounts", "Minimal API + AccountService", "CRUD operations for accounts scoped to an institution")
     Component(categories, "Categories", "Minimal API + CategoryService", "CRUD for canonical spending categories")
-    Component(claudeAnalysis, "Claude Analysis", "ClaudeTransactionAnalyzer", "Calls Claude API for vendor normalization and category suggestion")
+    Component(claudeAnalysis, "Claude Analysis", "ClaudeAnalysisService", "Calls Claude API for vendor normalization and category suggestion")
     Component(import, "Import", "Minimal API + ImportService", "CSV upload preview, import profile management, and transaction processing pipeline")
     Component(review, "Review", "Minimal API + ReviewService", "Post-import review queue for accepting or overriding Claude suggestions")
+    Component(learnedRules, "Learned Rules", "Minimal API + LearnedRuleService", "Manages user-promoted raw description rules (vendor and category) and applies them to imported transactions before Claude analysis")
 }
 
 Rel(web, institutions, "Manages institutions", "HTTP/JSON")
@@ -21,14 +22,18 @@ Rel(web, accounts, "Manages accounts", "HTTP/JSON")
 Rel(web, categories, "Manages categories", "HTTP/JSON")
 Rel(web, import, "Uploads CSV files, configures profiles, processes imports", "HTTP/JSON")
 Rel(web, review, "Reviews and accepts or overrides suggestions", "HTTP/JSON")
+Rel(web, learnedRules, "Manages learned rules", "HTTP/JSON")
 
 Rel(institutions, db, "Reads/Writes institutions", "EF Core")
 Rel(accounts, db, "Reads/Writes accounts", "EF Core")
 Rel(categories, db, "Reads/Writes categories", "EF Core")
 Rel(import, db, "Reads/Writes import profiles, column mappings, and transactions", "EF Core")
 Rel(review, db, "Reads/Writes review queue entries", "EF Core")
+Rel(learnedRules, db, "Reads/Writes learned rules and rule links on transactions", "EF Core")
 
-Rel(import, claudeAnalysis, "Sends parsed transactions for analysis")
+Rel(import, learnedRules, "Applies rules before Claude analysis")
+Rel(review, learnedRules, "Derives rule suggestions from overrides")
+Rel(import, claudeAnalysis, "Sends transactions not matched by a learned rule for analysis")
 Rel(claudeAnalysis, claude, "Analyzes transactions", "HTTPS/JSON")
 
 @enduml

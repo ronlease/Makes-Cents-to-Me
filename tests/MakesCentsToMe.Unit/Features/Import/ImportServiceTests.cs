@@ -241,9 +241,50 @@
 //   Given all CSV rows match existing transactions
 //   When ProcessAsync is called
 //   Then IClaudeAnalysisService.AnalyzeTransactionsAsync is never called
+//
+// Feature: Process Import — Learned Rules
+//
+// Scenario: A transaction matching a learned rule is not sent to Claude
+//   Given a learned rule for "WHOLEFDS MKT"
+//   And a CSV with one matching row and one non-matching row
+//   When ProcessAsync is called
+//   Then only the non-matching transaction is sent to IClaudeAnalysisService
+//
+// Scenario: Claude is never called when every transaction matches a rule
+//   Given a learned rule for "WHOLEFDS MKT"
+//   And a CSV whose rows all match the rule
+//   When ProcessAsync is called
+//   Then IClaudeAnalysisService.AnalyzeTransactionsAsync is never called
+//
+// Scenario: The auto categorized count reflects matched rows
+//   Given a learned rule for "WHOLEFDS MKT"
+//   And a CSV with two matching rows and one non-matching row
+//   When ProcessAsync is called
+//   Then AutoCategorizedCount is 2 and TransactionsCreated is 3
+//
+// Scenario: A matching rule commits the transaction as auto categorized
+//   Given a learned rule for "WHOLEFDS MKT"
+//   When a matching row is imported
+//   Then the transaction is Committed, IsAutoCategorized, and carries the rule's vendor, category and rule id
+//
+// Scenario: A matching rule leaves the raw description and raw data untouched
+//   Given a learned rule for "WHOLEFDS MKT"
+//   When a matching row is imported
+//   Then Description, RawCsvRow and RawData are preserved verbatim
+//
+// Scenario: A deleted rule no longer short-circuits Claude
+//   Given a learned rule that has been deleted
+//   When a previously matching row is imported
+//   Then the transaction is sent to IClaudeAnalysisService
+//
+// Scenario: No rules configured reports zero auto categorized
+//   Given no learned rules
+//   When ProcessAsync is called
+//   Then AutoCategorizedCount is 0
 
 using FluentAssertions;
 using MakesCentsToMe.Api.Features.Import;
+using MakesCentsToMe.Api.Features.LearnedRules;
 using MakesCentsToMe.Api.Infrastructure.Claude;
 using MakesCentsToMe.Api.Infrastructure.Data;
 using MakesCentsToMe.Api.Models.Entities;
@@ -259,6 +300,7 @@ public class ImportServiceTests : IDisposable
     private readonly Mock<IClaudeAnalysisService> _claudeAnalysisServiceMock;
     private readonly AppDbContext _dbContext;
     private readonly string _databaseName;
+    private readonly Mock<ILearnedRuleService> _learnedRuleServiceMock;
     private readonly ImportService _service;
 
     public ImportServiceTests()
@@ -269,7 +311,11 @@ public class ImportServiceTests : IDisposable
         _claudeAnalysisServiceMock
             .Setup(s => s.AnalyzeTransactionsAsync(It.IsAny<List<Transaction>>()))
             .Returns(Task.CompletedTask);
-        _service = new ImportService(_dbContext, _claudeAnalysisServiceMock.Object);
+        _learnedRuleServiceMock = new Mock<ILearnedRuleService>();
+        _learnedRuleServiceMock
+            .Setup(s => s.ApplyRulesAsync(It.IsAny<IReadOnlyList<Transaction>>()))
+            .ReturnsAsync((IReadOnlyList<Transaction> transactions) => transactions);
+        _service = new ImportService(_dbContext, _claudeAnalysisServiceMock.Object, _learnedRuleServiceMock.Object);
     }
 
     public void Dispose() => _dbContext.Dispose();
@@ -1361,7 +1407,201 @@ public class ImportServiceTests : IDisposable
             Times.Never);
     }
 
+    // --- ProcessAsync — Learned Rules ---
+
+    [Fact]
+    public async Task ProcessAsync_TransactionMatchesLearnedRule_DoesNotSendItToClaude()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        await SeedLearnedRuleAsync("WHOLEFDS MKT", "Whole Foods", "Groceries");
+        var service = BuildServiceWithRealLearnedRules();
+        var sentToClaude = CaptureTransactionsSentToClaude();
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,WHOLEFDS MKT #10234,52.10,947.90",
+            "01/02/2024,Coffee,5.00,942.90",
+        ]);
+
+        // Act
+        await service.ProcessAsync(account.Id, stream, new ProcessImportRequest(null, null));
+
+        // Assert
+        sentToClaude.Should().ContainSingle()
+            .Which.Should().ContainSingle()
+            .Which.Description.Should().Be("Coffee");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_AllTransactionsMatchRules_NeverCallsClaude()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        await SeedLearnedRuleAsync("WHOLEFDS MKT", "Whole Foods", "Groceries");
+        var service = BuildServiceWithRealLearnedRules();
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,WHOLEFDS MKT #10234,52.10,947.90",
+            "01/02/2024,WHOLEFDS MKT #55,10.00,937.90",
+        ]);
+
+        // Act
+        var result = await service.ProcessAsync(account.Id, stream, new ProcessImportRequest(null, null));
+
+        // Assert
+        result.Success.Should().BeTrue();
+        _claudeAnalysisServiceMock.Verify(
+            s => s.AnalyzeTransactionsAsync(It.IsAny<List<Transaction>>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_RuleMatches_ReturnsAutoCategorizedCount()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        await SeedLearnedRuleAsync("WHOLEFDS MKT", "Whole Foods", "Groceries");
+        var service = BuildServiceWithRealLearnedRules();
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,WHOLEFDS MKT #10234,52.10,947.90",
+            "01/02/2024,WHOLEFDS MKT #55,10.00,937.90",
+            "01/03/2024,Coffee,5.00,932.90",
+        ]);
+
+        // Act
+        var result = await service.ProcessAsync(account.Id, stream, new ProcessImportRequest(null, null));
+
+        // Assert
+        result.Data!.AutoCategorizedCount.Should().Be(2);
+        result.Data.TransactionsCreated.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_NoLearnedRules_ReturnsZeroAutoCategorizedCount()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        var service = BuildServiceWithRealLearnedRules();
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,Coffee,5.00,995.00",
+        ]);
+
+        // Act
+        var result = await service.ProcessAsync(account.Id, stream, new ProcessImportRequest(null, null));
+
+        // Assert
+        result.Data!.AutoCategorizedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_RuleMatches_CommitsTransactionAsAutoCategorizedWithRuleValues()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        var rule = await SeedLearnedRuleAsync("WHOLEFDS MKT", "Whole Foods", "Groceries");
+        var service = BuildServiceWithRealLearnedRules();
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,WHOLEFDS MKT #10234,52.10,947.90",
+        ]);
+
+        // Act
+        await service.ProcessAsync(account.Id, stream, new ProcessImportRequest(null, null));
+
+        // Assert
+        var transaction = await _dbContext.Transactions.AsNoTracking().SingleAsync();
+        transaction.Status.Should().Be(TransactionStatus.Committed);
+        transaction.IsAutoCategorized.Should().BeTrue();
+        transaction.LearnedRuleId.Should().Be(rule.Id);
+        transaction.CategoryId.Should().Be(rule.CategoryId);
+        transaction.NormalizedVendor.Should().Be("Whole Foods");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_RuleMatches_PreservesDescriptionAndRawDataVerbatim()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        await SeedLearnedRuleAsync("WHOLEFDS MKT", "Whole Foods", "Groceries");
+        var service = BuildServiceWithRealLearnedRules();
+        const string csvRow = "01/01/2024,wholefds mkt #10234,52.10,947.90";
+        using var stream = BuildStream(["Date,Description,Amount,Balance", csvRow]);
+
+        // Act
+        await service.ProcessAsync(account.Id, stream, new ProcessImportRequest(null, null));
+
+        // Assert
+        var transaction = await _dbContext.Transactions.AsNoTracking().SingleAsync();
+        transaction.Description.Should().Be("wholefds mkt #10234");
+        transaction.RawCsvRow.Should().Be(csvRow);
+        transaction.RawData.Should().Contain("Description", "wholefds mkt #10234");
+    }
+
+    [Fact]
+    public async Task ProcessAsync_AfterRuleDeleted_SendsMatchingTransactionToClaude()
+    {
+        // Arrange
+        var (account, _) = SeedAccountWithSingleAmountProfile(balanceProvided: true);
+        var rule = await SeedLearnedRuleAsync("WHOLEFDS MKT", "Whole Foods", "Groceries");
+        var learnedRuleService = new LearnedRuleService(_dbContext);
+        await learnedRuleService.DeleteAsync(rule.Id);
+        var service = BuildServiceWithRealLearnedRules();
+        var sentToClaude = CaptureTransactionsSentToClaude();
+        using var stream = BuildStream(
+        [
+            "Date,Description,Amount,Balance",
+            "01/01/2024,WHOLEFDS MKT #10234,52.10,947.90",
+        ]);
+
+        // Act
+        var result = await service.ProcessAsync(account.Id, stream, new ProcessImportRequest(null, null));
+
+        // Assert
+        result.Data!.AutoCategorizedCount.Should().Be(0);
+        sentToClaude.Should().ContainSingle()
+            .Which.Should().ContainSingle()
+            .Which.Description.Should().Be("WHOLEFDS MKT #10234");
+    }
+
     // --- Helpers ---
+
+    private ImportService BuildServiceWithRealLearnedRules() =>
+        new(_dbContext, _claudeAnalysisServiceMock.Object, new LearnedRuleService(_dbContext));
+
+    private List<List<Transaction>> CaptureTransactionsSentToClaude()
+    {
+        var captured = new List<List<Transaction>>();
+        _claudeAnalysisServiceMock
+            .Setup(s => s.AnalyzeTransactionsAsync(It.IsAny<List<Transaction>>()))
+            .Callback<List<Transaction>>(transactions => captured.Add(transactions.ToList()))
+            .Returns(Task.CompletedTask);
+        return captured;
+    }
+
+    private async Task<LearnedRule> SeedLearnedRuleAsync(string pattern, string normalizedVendor, string categoryName)
+    {
+        var category = new Category { Id = Guid.NewGuid(), Name = categoryName };
+        var rule = new LearnedRule
+        {
+            Category = category,
+            CategoryId = category.Id,
+            CreatedAt = DateTime.UtcNow,
+            Id = Guid.NewGuid(),
+            NormalizedVendor = normalizedVendor,
+            Pattern = pattern,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        _dbContext.LearnedRules.Add(rule);
+        await _dbContext.SaveChangesAsync();
+        return rule;
+    }
 
     private Institution SeedInstitution(string name)
     {

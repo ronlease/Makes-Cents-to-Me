@@ -122,8 +122,47 @@
 //   Given a transaction in PendingReview status
 //   When OverrideAsync is called with CategoryId = null
 //   Then the transaction is committed with a null CategoryId
+//
+// Feature: Review Queue — Learned Rule Suggestions
+//
+// Scenario: Overriding Shopping to Groceries suggests a learned rule
+//   Given a PendingReview transaction "WHOLEFDS MKT #10234" suggested as Shopping
+//   When OverrideAsync is called with vendor "Whole Foods" and category Groceries
+//   Then the response carries a suggestion with pattern "WHOLEFDS MKT", vendor "Whole Foods",
+//     category Groceries and the transaction id as source
+//
+// Scenario: Override with no category returns no suggestion
+//   Given a PendingReview transaction
+//   When OverrideAsync is called with a null category
+//   Then no suggestion is returned
+//
+// Scenario: Override equal to the Claude suggestion returns no suggestion
+//   Given a PendingReview transaction suggested as Groceries and "Whole Foods"
+//   When OverrideAsync is called with the same values
+//   Then no suggestion is returned
+//
+// Scenario: Override matching an existing identical rule returns no suggestion
+//   Given a learned rule for the derived pattern with the same vendor and category
+//   When OverrideAsync is called with those values
+//   Then no suggestion is returned
+//
+// Scenario: Override conflicting with an existing rule suggests updating it
+//   Given a learned rule for the derived pattern mapping to a different vendor and category
+//   When OverrideAsync is called with new values
+//   Then the suggestion carries the existing rule id
+//
+// Scenario: Override preserves the raw description verbatim
+//   Given a PendingReview transaction with a mixed case description
+//   When OverrideAsync is called
+//   Then the description is unchanged
+//
+// Scenario: Accept never returns a suggestion
+//   Given a PendingReview transaction
+//   When AcceptAsync is called
+//   Then no suggestion is returned
 
 using FluentAssertions;
+using MakesCentsToMe.Api.Features.LearnedRules;
 using MakesCentsToMe.Api.Features.Review;
 using MakesCentsToMe.Api.Infrastructure.Data;
 using MakesCentsToMe.Api.Models.Entities;
@@ -140,7 +179,7 @@ public class ReviewServiceTests : IDisposable
     public ReviewServiceTests()
     {
         _dbContext = InMemoryDbContextFactory.Create();
-        _service = new ReviewService(_dbContext);
+        _service = new ReviewService(_dbContext, new LearnedRuleService(_dbContext));
     }
 
     public void Dispose() => _dbContext.Dispose();
@@ -563,7 +602,157 @@ public class ReviewServiceTests : IDisposable
         saved!.CategoryId.Should().BeNull();
     }
 
+    // --- Learned rule suggestions ---
+
+    [Fact]
+    public async Task OverrideAsync_CategoryChangedFromShoppingToGroceries_ReturnsSuggestionForWholefdsMkt()
+    {
+        // Arrange
+        var shopping = SeedCategory("Shopping");
+        var groceries = SeedCategory("Groceries");
+        var (_, transaction) = SeedTransactionInStatus(
+            TransactionStatus.PendingReview,
+            suggestedCategoryId: shopping.Id,
+            suggestedNormalizedVendor: "Whole Foods Market");
+        transaction.Description = "WHOLEFDS MKT #10234";
+        _dbContext.SaveChanges();
+        var request = new OverrideTransactionRequest(CategoryId: groceries.Id, NormalizedVendor: "Whole Foods");
+
+        // Act
+        var result = await _service.OverrideAsync(transaction.Id, request);
+
+        // Assert
+        var suggestion = result.Data!.LearnedRuleSuggestion;
+        suggestion.Should().NotBeNull();
+        suggestion!.Pattern.Should().Be("WHOLEFDS MKT");
+        suggestion.NormalizedVendor.Should().Be("Whole Foods");
+        suggestion.CategoryId.Should().Be(groceries.Id);
+        suggestion.CategoryName.Should().Be("Groceries");
+        suggestion.SourceTransactionId.Should().Be(transaction.Id);
+        suggestion.ExistingLearnedRuleId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task OverrideAsync_NullCategory_ReturnsNoSuggestion()
+    {
+        // Arrange
+        var (_, transaction) = SeedTransactionInStatus(TransactionStatus.PendingReview);
+        var request = new OverrideTransactionRequest(CategoryId: null, NormalizedVendor: "Whole Foods");
+
+        // Act
+        var result = await _service.OverrideAsync(transaction.Id, request);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.LearnedRuleSuggestion.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task OverrideAsync_ValuesEqualClaudeSuggestion_ReturnsNoSuggestion()
+    {
+        // Arrange
+        var groceries = SeedCategory("Groceries");
+        var (_, transaction) = SeedTransactionInStatus(
+            TransactionStatus.PendingReview,
+            suggestedCategoryId: groceries.Id,
+            suggestedNormalizedVendor: "Whole Foods");
+        var request = new OverrideTransactionRequest(CategoryId: groceries.Id, NormalizedVendor: "Whole Foods");
+
+        // Act
+        var result = await _service.OverrideAsync(transaction.Id, request);
+
+        // Assert
+        result.Data!.LearnedRuleSuggestion.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task OverrideAsync_IdenticalRuleAlreadyExists_ReturnsNoSuggestion()
+    {
+        // Arrange
+        var groceries = SeedCategory("Groceries");
+        SeedLearnedRule("WHOLEFDS MKT", "Whole Foods", groceries);
+        var (_, transaction) = SeedTransactionInStatus(TransactionStatus.PendingReview);
+        transaction.Description = "WHOLEFDS MKT #10234";
+        _dbContext.SaveChanges();
+        var request = new OverrideTransactionRequest(CategoryId: groceries.Id, NormalizedVendor: "Whole Foods");
+
+        // Act
+        var result = await _service.OverrideAsync(transaction.Id, request);
+
+        // Assert
+        result.Data!.LearnedRuleSuggestion.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task OverrideAsync_RuleWithSamePatternDifferentMapping_ReturnsSuggestionWithExistingRuleId()
+    {
+        // Arrange
+        var shopping = SeedCategory("Shopping");
+        var groceries = SeedCategory("Groceries");
+        var existingRule = SeedLearnedRule("WHOLEFDS MKT", "Whole Foods Market", shopping);
+        var (_, transaction) = SeedTransactionInStatus(TransactionStatus.PendingReview);
+        transaction.Description = "WHOLEFDS MKT #10234";
+        _dbContext.SaveChanges();
+        var request = new OverrideTransactionRequest(CategoryId: groceries.Id, NormalizedVendor: "Whole Foods");
+
+        // Act
+        var result = await _service.OverrideAsync(transaction.Id, request);
+
+        // Assert
+        result.Data!.LearnedRuleSuggestion.Should().NotBeNull();
+        result.Data.LearnedRuleSuggestion!.ExistingLearnedRuleId.Should().Be(existingRule.Id);
+    }
+
+    [Fact]
+    public async Task OverrideAsync_AnyOverride_PreservesRawDescriptionVerbatim()
+    {
+        // Arrange
+        var groceries = SeedCategory("Groceries");
+        var (_, transaction) = SeedTransactionInStatus(TransactionStatus.PendingReview);
+        const string rawDescription = "  wholefds MKT   #10234 ";
+        transaction.Description = rawDescription;
+        _dbContext.SaveChanges();
+        var request = new OverrideTransactionRequest(CategoryId: groceries.Id, NormalizedVendor: "Whole Foods");
+
+        // Act
+        var result = await _service.OverrideAsync(transaction.Id, request);
+
+        // Assert
+        result.Data!.Description.Should().Be(rawDescription);
+        var saved = await _dbContext.Transactions.AsNoTracking().SingleAsync(t => t.Id == transaction.Id);
+        saved.Description.Should().Be(rawDescription);
+    }
+
+    [Fact]
+    public async Task AcceptAsync_PendingReviewTransaction_ReturnsNoSuggestion()
+    {
+        // Arrange
+        var (_, transaction) = SeedTransactionInStatus(TransactionStatus.PendingReview);
+
+        // Act
+        var result = await _service.AcceptAsync(transaction.Id);
+
+        // Assert
+        result.Data!.LearnedRuleSuggestion.Should().BeNull();
+    }
+
     // --- Helpers ---
+
+    private LearnedRule SeedLearnedRule(string pattern, string normalizedVendor, Category category)
+    {
+        var rule = new LearnedRule
+        {
+            CategoryId = category.Id,
+            CreatedAt = DateTime.UtcNow,
+            Id = Guid.NewGuid(),
+            NormalizedVendor = normalizedVendor,
+            Pattern = pattern,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        _dbContext.LearnedRules.Add(rule);
+        _dbContext.SaveChanges();
+        return rule;
+    }
 
     private Category SeedCategory(string name)
     {
