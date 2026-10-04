@@ -1053,7 +1053,7 @@ features, but they protect the correctness and longevity of everything that does
 
 ### [MCM-022] Establish Integration Test Coverage
 
-**Status:** In Progress
+**Status:** Done
 **Priority:** High
 
 #### Business Problem
@@ -1144,6 +1144,110 @@ Feature: Migration away from the deprecated animations package
 
 ---
 
+### [MCM-024] Fix Profile Update Failing on New Mapping
+
+**Status:** Backlog
+**Type:** Bug
+**Priority:** High
+
+#### Business Problem
+When I edit an import profile and add a new column mapping, the save fails with an
+unhandled server error (HTTP 500) and my change is lost. The cause is that
+`ImportService.UpdateProfileAsync` assigns `Id = Guid.NewGuid()` to the new `ColumnMapping`
+before adding it to the tracked collection, so Entity Framework treats it as an existing row
+and issues an UPDATE that touches zero rows, raising a `DbUpdateConcurrencyException`. This
+blocks me from correcting a profile when an institution adds a column to its export. The
+defect was found by the integration test
+`UpdateProfile_AddingMapping_ThrowsConcurrencyException`, which currently pins the broken
+behavior.
+
+#### Acceptance Criteria
+```gherkin
+Feature: Updating an import profile with a new column mapping
+
+  Scenario: Adding a new column mapping succeeds
+    Given an account has a saved import profile with two column mappings
+    When I send PUT /api/v1/accounts/{accountId}/import/profile with those two mappings plus one new mapping
+    Then the response status is 200
+    And the persisted profile contains three column mappings
+    And the new mapping has a database-assigned identifier
+
+  Scenario: Existing mappings are preserved when a mapping is added
+    Given an account has a saved import profile with two column mappings
+    When I add a third mapping through the PUT endpoint
+    Then the original two mappings retain their identifiers and values
+
+  Scenario: Removing and updating mappings still works
+    Given an account has a saved import profile with three column mappings
+    When I send a PUT request that removes one mapping and changes another
+    Then the response status is 200
+    And the persisted profile reflects the removal and the change
+
+  Scenario: Regression test expects success
+    Given the integration test UpdateProfile_AddingMapping_ThrowsConcurrencyException exists
+    When the fix is complete
+    Then the test is renamed and asserts a 200 response instead of a concurrency exception
+```
+
+---
+
+### [MCM-025] API Status Code and Raw Data Consistency
+
+**Status:** Backlog
+**Type:** Technical debt
+**Priority:** Low
+
+#### Business Problem
+Integration tests written for MCM-022 exposed inconsistent HTTP status codes across the
+API, and one deviation from the rule that raw institution data is never altered. Clients
+(including the frontend) cannot reliably distinguish "not found" from "invalid request", and
+the import path trims whitespace from raw values. Specifically: a duplicate-name PUT on
+accounts and categories returns 404 (should be 400 or 409); DELETE of a missing
+institution, account, or category, and accept or override of a missing transaction, return
+400 (should be 404); GET of the accounts list for an unknown institution returns 404 while
+POST for the same institution returns 400; and `RawData` values are trimmed by
+`ParseCsvLine`, although `RawCsvRow` is meant to be verbatim. The integration tests
+currently pin each of these behaviors and must be updated alongside the fixes.
+
+#### Acceptance Criteria
+```gherkin
+Feature: Consistent API status codes and verbatim raw data
+
+  Scenario: Duplicate name on update is a conflict, not a missing resource
+    Given an account (or category) named "Checking" exists and another with a different name exists
+    When I PUT the second one with the name "Checking"
+    Then the response status is 409
+    And the response is not 404
+
+  Scenario: Deleting a missing resource returns 404
+    Given no institution, account, or category exists with a given identifier
+    When I send DELETE for that identifier on each resource type
+    Then each response status is 404
+
+  Scenario: Accepting or overriding a missing transaction returns 404
+    Given no transaction exists with a given identifier
+    When I accept or override that transaction through the review endpoints
+    Then each response status is 404
+
+  Scenario: Unknown institution is handled consistently for accounts
+    Given no institution exists with a given identifier
+    When I GET and POST accounts under that institution
+    Then both responses return the same status code, 404
+
+  Scenario: Raw data is preserved verbatim
+    Given a CSV row contains a field with leading and trailing whitespace
+    When the file is imported
+    Then the stored RawData value for that field equals the original text including whitespace
+    And parsing for mapped fields still trims values for normalization
+
+  Scenario: Integration tests reflect the corrected behavior
+    Given the integration tests that pin the current status codes and trimming
+    When the fixes are complete
+    Then those tests assert the corrected behavior
+```
+
+---
+
 ## Backlog Summary
 
 | ID      | Title                                           | Priority | Status  |
@@ -1169,5 +1273,7 @@ Feature: Migration away from the deprecated animations package
 | MCM-019 | Main Dashboard (placeholder)                    | Low      | Backlog |
 | MCM-020 | Light and Dark Mode Theme Support               | High     | Done    |
 | MCM-021 | Redesign Frontend UI                            | Medium   | Backlog |
-| MCM-022 | Establish Integration Test Coverage             | High     | In Progress |
+| MCM-022 | Establish Integration Test Coverage             | High     | Done    |
 | MCM-023 | Migrate Off Deprecated @angular/animations      | Medium   | Backlog |
+| MCM-024 | Fix Profile Update Failing on New Mapping       | High     | Backlog |
+| MCM-025 | API Status Code and Raw Data Consistency        | Low      | Backlog |
