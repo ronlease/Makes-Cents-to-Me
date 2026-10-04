@@ -1,0 +1,13 @@
+<Project>
+  <!-- Fails the build when a test project has no handwritten source files. Compile items outside the project directory
+       (for example the Program.cs injected by Microsoft.NET.Test.Sdk) and generated files under obj are ignored. -->
+  <Target Name="EnsureTestProjectHasSourceFiles" BeforeTargets="BeforeBuild" Condition="'$(IsTestProject)' == 'true'">
+    <ItemGroup>
+      <HandwrittenTestSourceFile Include="@(Compile)"
+                                 Exclude="$([MSBuild]::NormalizeDirectory($(MSBuildProjectDirectory), $(BaseIntermediateOutputPath)))**"
+                                 Condition="$([System.String]::new('%(FullPath)').StartsWith('$([MSBuild]::NormalizeDirectory($(MSBuildProjectDirectory)))', System.StringComparison.OrdinalIgnoreCase))" />
+    </ItemGroup>
+    <Error Condition="'@(HandwrittenTestSourceFile)' == ''"
+           Text="Test project '$(MSBuildProjectName)' contains no test source files. An empty test project would report 'No test is available' and appear to pass." />
+  </Target>
+</Project>

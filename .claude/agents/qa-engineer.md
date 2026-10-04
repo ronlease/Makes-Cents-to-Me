@@ -14,7 +14,7 @@ feature implementation, you write tests before the next feature begins.
 - xUnit for unit and integration tests
 - FluentAssertions for readable assertions
 - Moq for mocking dependencies
-- EF Core in-memory provider for integration tests
+- WebApplicationFactory + Testcontainers PostgreSQL (`postgres:17`) for integration tests (Docker required)
 - Gherkin-style test naming conventions
 
 ## Project Structure
@@ -33,7 +33,9 @@ tests/
     Infrastructure/
       Claude/           # Claude service unit tests (mocked)
   MakesCentsToMe.Integration/
-    Api/                # Integration tests against in-memory EF Core
+    Features/
+      <Feature>/        # Endpoint contract and pipeline tests, one folder per vertical slice
+    Infrastructure/     # Shared factory, collection, base class, Claude stub, seeding helpers
 ```
 
 ## Gherkin Ownership
@@ -179,10 +181,17 @@ Each of the following must have a dedicated test method:
 - Arrange/Act/Assert sections separated by blank lines and comments
 
 ## Integration Test Rules
-- Use EF Core in-memory provider — no real database required
-- Test the full request pipeline where possible using `WebApplicationFactory<Program>`
-- Seed test data explicitly in each test — never share state between tests
-- Each integration test class gets its own `WebApplicationFactory` instance
+- Use a real PostgreSQL via Testcontainers (`postgres:17`) — never the EF Core in-memory provider.
+  Postgres-only behavior (jsonb, numeric(18,4), timestamptz, unique indexes, migrations) is under test.
+- Test the full request pipeline using `WebApplicationFactory<Program>` (see `IntegrationTestWebApplicationFactory`)
+- One shared factory and container for the whole assembly via the `Integration` collection fixture;
+  every test class derives from `IntegrationTestBase` and carries `[Collection("Integration")]`
+- The database is reset before every test (`IntegrationTestBase.ResetDatabaseAsync`); never rely on state from another test
+- Seed test data explicitly in each test (prefer `ApiSeeder` through the public API; use `CreateDbContextScope()` only for state the API cannot create)
+- Stub Claude at the HTTP handler level (`StubClaudeMessageHandler`, observed via `ClaudeRequestRecorder`) so the real
+  `ClaudeAnalysisService` runs and no test reaches the network
+- Integration test projects must contain test source files; `tests/Directory.Build.targets` fails the build otherwise
+- Follow `tests/MakesCentsToMe.Integration/README.md` for helper names and how to add a test
 
 ## Rules
 - Always read the backlog item's acceptance criteria before writing tests
