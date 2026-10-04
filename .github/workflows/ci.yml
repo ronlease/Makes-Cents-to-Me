@@ -55,8 +55,8 @@ jobs:
             </ItemGroup>
           </Project>
           EOF
-          output=$(dotnet build "$probe/EmptyProjectGuardProbe.csproj" --configuration Release 2>&1)
-          status=$?
+          status=0
+          output=$(dotnet build "$probe/EmptyProjectGuardProbe.csproj" --configuration Release 2>&1) || status=$?
           echo "$output"
           rm -rf "$probe"
           if [ "$status" -eq 0 ]; then
