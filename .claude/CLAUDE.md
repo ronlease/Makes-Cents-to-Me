@@ -11,7 +11,7 @@ alerts through a Mint-style dashboard. Single-user, local deployment only.
 - **Frontend:** Angular 22, standalone components, Angular Material, ApexCharts
 - **Auth:** None — single user, local deployment
 - **AI:** Claude API (vendor normalization, categorization, dedup algorithm derivation)
-- **Testing:** xUnit, Gherkin-style naming, FluentAssertions, Moq
+- **Testing:** xUnit, Gherkin-style naming, FluentAssertions, Moq (unit); WebApplicationFactory + Testcontainers PostgreSQL (integration, requires Docker)
 - **Documentation:** Swashbuckle (OpenAPI/Swagger), PlantUML (C4 models)
 - **Infrastructure:** Docker Compose (Windows and Fedora)
 - **Secrets:** dotnet user-secrets (local)
@@ -40,7 +40,7 @@ MakesCentsToMe/
     MakesCentsToMe.Web/           # Angular 22 frontend
   tests/
     MakesCentsToMe.Unit/          # xUnit unit tests, mirroring Features/ structure
-    MakesCentsToMe.Integration/   # xUnit integration tests (EF Core in-memory)
+    MakesCentsToMe.Integration/   # xUnit integration tests (WebApplicationFactory + Testcontainers PostgreSQL)
   docs/
     backlog.md                    # Owned by Product Owner agent
     c4/                           # PlantUML C4 model files

@@ -7,7 +7,7 @@ Personal spending intelligence and trend analysis tool. Ingests CSV exports from
 - **API:** ASP.NET Core 10, Entity Framework Core 10, PostgreSQL 17
 - **Frontend:** Angular 22, Angular Material, ApexCharts
 - **AI:** Claude API (vendor normalization, categorization)
-- **Testing:** xUnit, FluentAssertions, Moq
+- **Testing:** xUnit, FluentAssertions, Moq, Testcontainers (PostgreSQL)
 - **Infrastructure:** Docker Compose
 
 ## Prerequisites
@@ -46,6 +46,23 @@ ng serve
 
 The Angular app runs at **http://localhost:4210**.
 
+## Testing
+
+```bash
+# Unit tests (no external dependencies)
+dotnet test tests/MakesCentsToMe.Unit
+
+# Integration tests (Docker must be running; a throwaway PostgreSQL 17 container is started automatically)
+dotnet test tests/MakesCentsToMe.Integration
+
+# Everything
+dotnet test
+```
+
+Integration tests use [Testcontainers](https://dotnet.testcontainers.org/) and do not touch the
+development database started by `docker compose`. See
+[tests/MakesCentsToMe.Integration/README.md](tests/MakesCentsToMe.Integration/README.md) for details.
+
 ## Port Configuration
 
 | Service    | URL                        |
@@ -78,7 +95,7 @@ MakesCentsToMe/
         services/                # API and theme services
   tests/
     MakesCentsToMe.Unit/         # Unit tests
-    MakesCentsToMe.Integration/  # Integration tests
+    MakesCentsToMe.Integration/  # Integration tests (WebApplicationFactory + Testcontainers PostgreSQL)
   docs/
     backlog.md                   # Product backlog
     c4/                          # PlantUML C4 architecture diagrams
