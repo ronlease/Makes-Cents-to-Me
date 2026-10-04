@@ -1053,7 +1053,7 @@ features, but they protect the correctness and longevity of everything that does
 
 ### [MCM-022] Establish Integration Test Coverage
 
-**Status:** Backlog
+**Status:** In Progress
 **Priority:** High
 
 #### Business Problem
@@ -1169,5 +1169,5 @@ Feature: Migration away from the deprecated animations package
 | MCM-019 | Main Dashboard (placeholder)                    | Low      | Backlog |
 | MCM-020 | Light and Dark Mode Theme Support               | High     | Done    |
 | MCM-021 | Redesign Frontend UI                            | Medium   | Backlog |
-| MCM-022 | Establish Integration Test Coverage             | High     | Backlog |
+| MCM-022 | Establish Integration Test Coverage             | High     | In Progress |
 | MCM-023 | Migrate Off Deprecated @angular/animations      | Medium   | Backlog |
