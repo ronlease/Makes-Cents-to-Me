@@ -37,14 +37,79 @@ jobs:
       - name: Build
         run: dotnet build MakesCentsToMe.slnx --no-restore --configuration Release
 
+      - name: Verify empty test project guard
+        run: |
+          set -uo pipefail
+          probe=tests/EmptyProjectGuardProbe
+          mkdir -p "$probe"
+          cat > "$probe/EmptyProjectGuardProbe.csproj" <<'EOF'
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <TargetFramework>net10.0</TargetFramework>
+              <IsPackable>false</IsPackable>
+              <IsTestProject>true</IsTestProject>
+            </PropertyGroup>
+            <ItemGroup>
+              <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
+              <PackageReference Include="xunit" Version="2.*" />
+            </ItemGroup>
+          </Project>
+          EOF
+          output=$(dotnet build "$probe/EmptyProjectGuardProbe.csproj" --configuration Release 2>&1)
+          status=$?
+          echo "$output"
+          rm -rf "$probe"
+          if [ "$status" -eq 0 ]; then
+            echo "::error::Empty test project guard did not fail the build"
+            exit 1
+          fi
+          if ! echo "$output" | grep -q "contains no test source files"; then
+            echo "::error::Probe build failed, but not with the empty test project guard message"
+            exit 1
+          fi
+          echo "Empty test project guard works as expected."
+
       - name: Run tests
-        run: >
-          dotnet test MakesCentsToMe.slnx
-          --no-build --configuration Release --verbosity normal
-          --logger "trx;LogFileName=test-results.trx"
-          --results-directory ./test-results
-          --collect:"XPlat Code Coverage"
-          --settings coverlet.runsettings
+        run: |
+          set -euo pipefail
+          mkdir -p ./test-results
+          for project in tests/*/*.csproj; do
+            name=$(basename "$project" .csproj)
+            echo "::group::Testing ${name}"
+            dotnet test "$project" \
+              --no-build --configuration Release --verbosity normal \
+              --logger "trx;LogFileName=${name}.trx" \
+              --results-directory ./test-results \
+              --collect:"XPlat Code Coverage" \
+              --settings coverlet.runsettings 2>&1 | tee -a ./test-results/test-output.log
+            echo "::endgroup::"
+          done
+
+      - name: Verify every test project discovered tests
+        run: |
+          set -euo pipefail
+          failed=0
+          for project in tests/*/*.csproj; do
+            name=$(basename "$project" .csproj)
+            trx="./test-results/${name}.trx"
+            if [ ! -f "$trx" ]; then
+              echo "::error::No TRX file produced for ${name}"
+              failed=1
+              continue
+            fi
+            total=$(grep -oP '<Counters total="\K\d+' "$trx" | head -n 1 || true)
+            if [ -z "$total" ] || [ "$total" -eq 0 ]; then
+              echo "::error::${name} discovered no tests"
+              failed=1
+              continue
+            fi
+            echo "${name}: ${total} tests discovered"
+          done
+          if grep -q "No test is available" ./test-results/test-output.log; then
+            echo "::error::'No test is available' reported by dotnet test"
+            failed=1
+          fi
+          exit $failed
 
       - name: Install ReportGenerator
         run: dotnet tool install -g dotnet-reportgenerator-globaltool
