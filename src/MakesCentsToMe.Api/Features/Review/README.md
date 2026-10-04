@@ -14,6 +14,6 @@ transaction analysis suggestions.
 
 ## Key Types
 
-- `ReviewTransactionResponse` — full transaction details with Claude suggestions and status
+- `ReviewTransactionResponse` — full transaction details with Claude suggestions and status; includes `isAutoCategorized` (matched a learned rule) and `learnedRuleSuggestion` (populated only by the override endpoint, offering to promote the correction to a learned rule; null otherwise)
 - `OverrideTransactionRequest` — user-provided normalized vendor and category ID
 - `IReviewService` — service interface for review operations

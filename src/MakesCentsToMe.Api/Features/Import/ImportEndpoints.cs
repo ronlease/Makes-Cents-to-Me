@@ -93,6 +93,7 @@ public static class ImportEndpoints
                 : Results.BadRequest(result);
         })
         .WithSummary("Process a CSV file using the saved import profile and create transactions")
+        .WithDescription("Parses the file, skips duplicates, applies learned rules, and sends the remaining transactions to Claude. The response reports autoCategorizedCount, the number of transactions categorized by learned rules without calling Claude.")
         .DisableAntiforgery()
         .Produces<ApiResponse<ProcessImportResponse>>()
         .Produces<ApiResponse<ProcessImportResponse>>(StatusCodes.Status400BadRequest);

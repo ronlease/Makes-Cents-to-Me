@@ -1,4 +1,5 @@
 using MakesCentsToMe.Api.Common;
+using MakesCentsToMe.Api.Features.LearnedRules;
 using MakesCentsToMe.Api.Infrastructure.Claude;
 using MakesCentsToMe.Api.Infrastructure.Data;
 using MakesCentsToMe.Api.Models.Entities;
@@ -6,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MakesCentsToMe.Api.Features.Import;
 
-public class ImportService(AppDbContext dbContext, IClaudeAnalysisService claudeAnalysisService) : IImportService
+public class ImportService(
+    AppDbContext dbContext,
+    IClaudeAnalysisService claudeAnalysisService,
+    ILearnedRuleService learnedRuleService) : IImportService
 {
     private const int PreviewRowCount = 5;
 
@@ -57,7 +61,7 @@ public class ImportService(AppDbContext dbContext, IClaudeAnalysisService claude
 
         if (lines.Count < 2)
         {
-            return ApiResponse<ProcessImportResponse>.Ok(new ProcessImportResponse(0, 0, 0));
+            return ApiResponse<ProcessImportResponse>.Ok(new ProcessImportResponse(0, 0, 0, 0));
         }
 
         var headers = ParseCsvLine(lines[0]);
@@ -199,15 +203,26 @@ public class ImportService(AppDbContext dbContext, IClaudeAnalysisService claude
         dbContext.Transactions.AddRange(transactions);
         await dbContext.SaveChangesAsync();
 
-        // Claude analysis: analyze and update status
-        if (transactions.Count > 0)
+        // Learned rules: apply before Claude so matched transactions skip analysis
+        var unmatchedTransactions = transactions.Count > 0
+            ? await learnedRuleService.ApplyRulesAsync(transactions)
+            : transactions;
+        var autoCategorizedCount = transactions.Count - unmatchedTransactions.Count;
+
+        if (autoCategorizedCount > 0)
         {
-            await claudeAnalysisService.AnalyzeTransactionsAsync(transactions);
+            await dbContext.SaveChangesAsync();
+        }
+
+        // Claude analysis: analyze only unmatched transactions and update status
+        if (unmatchedTransactions.Count > 0)
+        {
+            await claudeAnalysisService.AnalyzeTransactionsAsync(unmatchedTransactions.ToList());
             await dbContext.SaveChangesAsync();
         }
 
         return ApiResponse<ProcessImportResponse>.Ok(
-            new ProcessImportResponse(duplicatesSkipped, skippedCount, transactions.Count));
+            new ProcessImportResponse(autoCategorizedCount, duplicatesSkipped, skippedCount, transactions.Count));
     }
 
     public async Task<ApiResponse<ImportProfileResponse>> SaveProfileAsync(Guid accountId, SaveImportProfileRequest request)

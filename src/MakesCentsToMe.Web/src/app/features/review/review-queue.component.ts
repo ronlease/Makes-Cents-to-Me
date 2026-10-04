@@ -11,7 +11,17 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ApiService, Category, ReviewTransaction } from '../../services/api.service';
+import {
+  ApiService,
+  Category,
+  LearnedRuleSuggestion,
+  ReviewTransaction,
+} from '../../services/api.service';
+import {
+  LearnedRuleDialogComponent,
+  LearnedRuleDialogData,
+  LearnedRuleDialogResult,
+} from '../learned-rules/learned-rule-dialog.component';
 import {
   ReviewOverrideDialogComponent,
   ReviewOverrideDialogData,
@@ -65,9 +75,7 @@ import {
       <span class="summary-divider">|</span>
       <span class="summary-pending-analysis">Awaiting Analysis: {{ pendingAnalysisCount() }}</span>
       <span class="summary-divider">|</span>
-      <span class="summary-accepted">Accepted: {{ acceptedCount() }}</span>
-      <span class="summary-divider">|</span>
-      <span class="summary-overridden">Overridden: {{ overriddenCount() }}</span>
+      <span class="summary-committed">Committed: {{ committedCount() }}</span>
     </div>
 
     @if (isLoading()) {
@@ -146,6 +154,9 @@ import {
             <span class="status-badge" [ngClass]="statusClass(row.status)">
               {{ statusLabel(row.status) }}
             </span>
+            @if (row.isAutoCategorized) {
+              <span class="auto-chip" matTooltip="Categorized by a learned rule">Auto</span>
+            }
           </td>
         </ng-container>
 
@@ -199,6 +210,15 @@ import {
   `,
   styles: [
     `
+      .auto-chip {
+        background: var(--mat-sys-tertiary-container);
+        border-radius: 8px;
+        color: var(--mat-sys-on-tertiary-container);
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-left: 6px;
+        padding: 1px 8px;
+      }
       .amount-credit {
         color: #2e7d32;
       }
@@ -302,22 +322,15 @@ import {
         background-color: #f3e5f5;
         color: #4a148c;
       }
-      .status-accepted {
+      .status-committed {
         background-color: #c8e6c9;
         color: #1b5e20;
-      }
-      .status-overridden {
-        background-color: #fff9c4;
-        color: #f57f17;
       }
       .status-other {
         background-color: var(--mat-sys-surface-variant);
         color: var(--mat-sys-on-surface-variant);
       }
 
-      .summary-accepted {
-        color: #2e7d32;
-      }
       .summary-bar {
         align-items: center;
         background: var(--mat-sys-surface-variant);
@@ -329,8 +342,8 @@ import {
       .summary-divider {
         color: var(--mat-sys-outline);
       }
-      .summary-overridden {
-        color: #e65100;
+      .summary-committed {
+        color: #2e7d32;
       }
       .summary-pending {
         color: #0d47a1;
@@ -367,10 +380,6 @@ export class ReviewQueueComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
-  protected acceptedCount(): number {
-    return this.allTransactions().filter((t) => t.status === 'Accepted').length;
-  }
-
   acceptAll(): void {
     this.isAcceptingAll.set(true);
     this.apiService.acceptAllTransactions().subscribe({
@@ -401,9 +410,11 @@ export class ReviewQueueComponent implements OnInit {
     });
   }
 
+  protected committedCount(): number {
+    return this.allTransactions().filter((t) => t.status === 'Committed').length;
+  }
+
   protected completedLabel(status: string): string {
-    if (status === 'Accepted') return 'Accepted';
-    if (status === 'Overridden') return 'Overridden';
     return status;
   }
 
@@ -464,6 +475,9 @@ export class ReviewQueueComponent implements OnInit {
             list.map((t) => (t.id === updated.id ? updated : t)),
           );
           this.snackBar.open('Transaction overridden.', 'Dismiss', { duration: 2500 });
+          if (updated.learnedRuleSuggestion) {
+            this.promptLearnedRuleSuggestion(updated.learnedRuleSuggestion);
+          }
         },
         error: () => {
           this.markRowBusy(transaction.id, false);
@@ -490,10 +504,6 @@ export class ReviewQueueComponent implements OnInit {
     return this.allTransactions().filter((t) => this.isPending(t));
   }
 
-  protected overriddenCount(): number {
-    return this.allTransactions().filter((t) => t.status === 'Overridden').length;
-  }
-
   protected rowClass(transaction: ReviewTransaction): string {
     return this.isPending(transaction) ? '' : 'row-completed';
   }
@@ -501,16 +511,13 @@ export class ReviewQueueComponent implements OnInit {
   protected statusClass(status: string): string {
     if (status === 'PendingReview') return 'status-pending';
     if (status === 'PendingAnalysis') return 'status-pending-analysis';
-    if (status === 'Accepted') return 'status-accepted';
-    if (status === 'Overridden') return 'status-overridden';
+    if (status === 'Committed') return 'status-committed';
     return 'status-other';
   }
 
   protected statusLabel(status: string): string {
     if (status === 'PendingReview') return 'Pending Review';
     if (status === 'PendingAnalysis') return 'Pending Analysis';
-    if (status === 'Accepted') return 'Accepted';
-    if (status === 'Overridden') return 'Overridden';
     return status;
   }
 
@@ -523,6 +530,30 @@ export class ReviewQueueComponent implements OnInit {
         next.delete(transactionId);
       }
       return next;
+    });
+  }
+
+  private promptLearnedRuleSuggestion(suggestion: LearnedRuleSuggestion): void {
+    const data: LearnedRuleDialogData = {
+      categories: this.categories(),
+      mode: 'suggestion',
+      suggestion,
+    };
+    const ref = this.dialog.open(LearnedRuleDialogComponent, { data, width: '520px' });
+    ref.afterClosed().subscribe((result: LearnedRuleDialogResult | undefined) => {
+      if (!result) return;
+      const save$ = suggestion.existingLearnedRuleId
+        ? this.apiService.updateLearnedRule(suggestion.existingLearnedRuleId, result)
+        : this.apiService.createLearnedRule({
+            ...result,
+            sourceTransactionId: suggestion.sourceTransactionId,
+          });
+      save$.subscribe({
+        next: () =>
+          this.snackBar.open('Learned rule saved.', 'Dismiss', { duration: 2500 }),
+        error: () =>
+          this.snackBar.open('Failed to save learned rule.', 'Dismiss', { duration: 4000 }),
+      });
     });
   }
 }

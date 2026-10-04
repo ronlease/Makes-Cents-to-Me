@@ -50,6 +50,11 @@
 //   When DeleteAsync is called
 //   Then a failure response is returned citing the missing id
 //
+// Scenario: Delete category used by a learned rule fails
+//   Given a category is referenced by a learned rule
+//   When DeleteAsync is called
+//   Then a failure response is returned and the category still exists
+//
 // Scenario: Get category by id when category exists
 //   Given a category exists in the database
 //   When GetByIdAsync is called with that category's id
@@ -297,6 +302,32 @@ public class CategoryServiceTests : IDisposable
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle()
             .Which.Should().Contain(missingId.ToString());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_CategoryUsedByLearnedRule_ReturnsFailure()
+    {
+        // Arrange
+        var category = SeedCategory("Groceries");
+        _dbContext.LearnedRules.Add(new LearnedRule
+        {
+            CategoryId = category.Id,
+            CreatedAt = DateTime.UtcNow,
+            Id = Guid.NewGuid(),
+            NormalizedVendor = "Whole Foods",
+            Pattern = "WHOLEFDS MKT",
+            UpdatedAt = DateTime.UtcNow,
+        });
+        _dbContext.SaveChanges();
+
+        // Act
+        var result = await _service.DeleteAsync(category.Id);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().ContainSingle()
+            .Which.Should().Contain("learned rules");
+        (await _dbContext.Categories.AnyAsync(c => c.Id == category.Id)).Should().BeTrue();
     }
 
     // --- GetByIdAsync ---

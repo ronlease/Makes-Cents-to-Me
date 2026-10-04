@@ -1,3 +1,5 @@
+using MakesCentsToMe.Api.Features.LearnedRules;
+
 namespace MakesCentsToMe.Api.Features.Review;
 
 public record OverrideTransactionRequest(Guid? CategoryId, string NormalizedVendor);
@@ -11,6 +13,8 @@ public record ReviewTransactionResponse(
     string Description,
     Guid Id,
     string InstitutionName,
+    bool IsAutoCategorized,
+    LearnedRuleSuggestion? LearnedRuleSuggestion,
     string? NormalizedVendor,
     string? RawCategory,
     string Status,

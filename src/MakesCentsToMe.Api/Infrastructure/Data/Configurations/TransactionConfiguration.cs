@@ -43,6 +43,15 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .HasPrecision(18, 4)
             .IsRequired();
 
+        builder.Property(transaction => transaction.IsAutoCategorized)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.HasOne(transaction => transaction.LearnedRule)
+            .WithMany(learnedRule => learnedRule.Transactions)
+            .HasForeignKey(transaction => transaction.LearnedRuleId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.Property(transaction => transaction.NormalizedVendor)
             .HasMaxLength(500);
 

@@ -46,6 +46,14 @@ public class CategoryService(AppDbContext dbContext) : ICategoryService
             return ApiResponse<bool>.Fail("Cannot delete a category that has assigned transactions.");
         }
 
+        var usedByLearnedRules = await dbContext.LearnedRules
+            .AnyAsync(learnedRule => learnedRule.CategoryId == id);
+
+        if (usedByLearnedRules)
+        {
+            return ApiResponse<bool>.Fail("Cannot delete a category that is used by learned rules.");
+        }
+
         dbContext.Categories.Remove(category);
         await dbContext.SaveChangesAsync();
 

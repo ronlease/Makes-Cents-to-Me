@@ -65,6 +65,7 @@ MakesCentsToMe/
         Categories/              # Canonical spending categories
         Import/                  # CSV upload, column mapping, parsing, dedup
         Institutions/            # Institution CRUD
+        LearnedRules/            # Rules promoted from review-queue overrides, applied on import
         Review/                  # Post-import review queue
       Infrastructure/
         Claude/                  # Claude API client for vendor/category analysis

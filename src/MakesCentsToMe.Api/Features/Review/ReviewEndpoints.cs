@@ -18,6 +18,7 @@ public static class ReviewEndpoints
             return Results.Ok(result);
         })
         .WithSummary("List transactions pending review")
+        .WithDescription("Returns transactions awaiting review. Rows categorized by a learned rule before Claude analysis are flagged with isAutoCategorized.")
         .Produces<ApiResponse<IReadOnlyList<ReviewTransactionResponse>>>();
 
         group.MapPut("/{transactionId:guid}/accept", async (
@@ -54,6 +55,7 @@ public static class ReviewEndpoints
                 : Results.BadRequest(result);
         })
         .WithSummary("Override Claude's suggestion with user values")
+        .WithDescription("Commits the user's vendor and category. When the correction differs from the existing suggestion, the response includes learnedRuleSuggestion, which the client can POST to /api/v1/learned-rules to promote it to a learned rule.")
         .Produces<ApiResponse<ReviewTransactionResponse>>()
         .Produces<ApiResponse<ReviewTransactionResponse>>(StatusCodes.Status400BadRequest);
     }
