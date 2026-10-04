@@ -1,5 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
@@ -26,12 +26,7 @@ import { ThemeService } from './services/theme.service';
   styleUrl: './app.scss',
 })
 export class App implements OnInit {
-  private readonly router = inject(Router);
   protected readonly themeService = inject(ThemeService);
-
-  isImportRouteActive(): boolean {
-    return this.router.url.includes('/import');
-  }
 
   ngOnInit(): void {
     this.themeService.initialize();
