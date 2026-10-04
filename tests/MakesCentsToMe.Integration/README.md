@@ -37,8 +37,9 @@ The host runs in the `IntegrationTesting` environment (Swagger is not mapped).
 ### Why tests run sequentially
 
 All test classes share one container and one database, and the reset truncates every table. xUnit
-runs classes in the same collection sequentially, which is what keeps tests isolated. Do not add
-`DisableParallelization = false` or move a class out of the collection.
+runs classes in the same collection sequentially, which is what keeps tests isolated. Do not move
+a class out of the `Integration` collection, and do not enable parallel test execution for this
+assembly.
 
 ## Adding a test
 
