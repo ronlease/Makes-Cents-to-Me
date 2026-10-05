@@ -1146,7 +1146,7 @@ Feature: Migration away from the deprecated animations package
 
 ### [MCM-024] Fix Profile Update Failing on New Mapping
 
-**Status:** Backlog
+**Status:** Done
 **Type:** Bug
 **Priority:** High
 
@@ -1275,5 +1275,5 @@ Feature: Consistent API status codes and verbatim raw data
 | MCM-021 | Redesign Frontend UI                            | Medium   | Backlog |
 | MCM-022 | Establish Integration Test Coverage             | High     | Done    |
 | MCM-023 | Migrate Off Deprecated @angular/animations      | Medium   | Backlog |
-| MCM-024 | Fix Profile Update Failing on New Mapping       | High     | Backlog |
+| MCM-024 | Fix Profile Update Failing on New Mapping       | High     | Done    |
 | MCM-025 | API Status Code and Raw Data Consistency        | Low      | Backlog |
