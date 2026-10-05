@@ -30,6 +30,15 @@ namespace MakesCentsToMe.Integration.Features.Import;
 [Collection(IntegrationTestCollection.Name)]
 public class ImportEndpointContractTests(IntegrationTestWebApplicationFactory factory) : IntegrationTestBase(factory)
 {
+    private static readonly SaveImportProfileRequest TwoMappingProfile = new(
+        AmountType.Single,
+        false,
+        [
+            new ColumnMappingRequest("Date", "Date"),
+            new ColumnMappingRequest("Description", "Description"),
+        ],
+        "MM/dd/yyyy");
+
     [Fact]
     public async Task GetProfile_NoProfile_ReturnsNotFound()
     {
@@ -233,59 +242,54 @@ public class ImportEndpointContractTests(IntegrationTestWebApplicationFactory fa
     }
 
     [Fact]
-    public async Task UpdateProfile_AddingMapping_ThrowsConcurrencyException()
+    public async Task UpdateProfile_AddingMapping_PreservesExistingMappingIdentifiersAndValues()
     {
         // Arrange
-        var accountId = await ApiSeeder.CreateAccountWithProfileAsync(Client);
-        var update = new SaveImportProfileRequest(
-            AmountType.Single,
-            true,
-            [
-                .. CsvSamples.StandardProfile.ColumnMappings,
-                new ColumnMappingRequest("Memo", "Category"),
-            ],
-            "MM/dd/yyyy");
-
-        // Act
-        var act = async () => await Client.PutAsJsonAsync($"/api/v1/accounts/{accountId}/import/profile", update, ApiJson.Options);
-
-        // Assert
-        // Current behavior (defect, reported): a newly added mapping is created with a preset key, so EF tracks it
-        // as Modified and SaveChanges throws instead of returning 200. The test host surfaces the unhandled exception.
-        await act.Should().ThrowAsync<Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException>();
-    }
-
-    [Fact]
-    public async Task UpdateProfile_RemovedAndChangedMappings_ArePersisted()
-    {
-        // Arrange
-        var accountId = await ApiSeeder.CreateAccountWithProfileAsync(Client);
-        var update = new SaveImportProfileRequest(
-            AmountType.Single,
-            false,
-            [
-                new ColumnMappingRequest("Amount", "Amount"),
-                new ColumnMappingRequest("Date", "Date"),
-                new ColumnMappingRequest("Description", "Category"),
-            ],
-            "yyyy-MM-dd");
+        var accountId = await ApiSeeder.CreateAccountWithProfileAsync(Client, profile: TwoMappingProfile);
+        var original = (await ApiJson.ReadApiResponseAsync<ImportProfileResponse>(
+            await Client.GetAsync($"/api/v1/accounts/{accountId}/import/profile"))).Data!;
+        var update = TwoMappingProfile with
+        {
+            ColumnMappings = [.. TwoMappingProfile.ColumnMappings, new ColumnMappingRequest("Amount", "Amount")],
+        };
 
         // Act
         var response = await Client.PutAsJsonAsync($"/api/v1/accounts/{accountId}/import/profile", update, ApiJson.Options);
-        var updated = (await ApiJson.ReadApiResponseAsync<ImportProfileResponse>(response)).Data!;
         var reread = (await ApiJson.ReadApiResponseAsync<ImportProfileResponse>(
             await Client.GetAsync($"/api/v1/accounts/{accountId}/import/profile"))).Data!;
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        updated.BalanceProvided.Should().BeFalse();
-        updated.DateFormat.Should().Be("yyyy-MM-dd");
-        reread.DateFormat.Should().Be("yyyy-MM-dd");
-        reread.ColumnMappings.Select(mapping => (mapping.CsvColumnName, mapping.ApplicationField))
-            .Should().Equal(
-                ("Amount", "Amount"),
-                ("Description", "Category"),
-                ("Date", "Date"));
+        foreach (var originalMapping in original.ColumnMappings)
+        {
+            reread.ColumnMappings.Should().Contain(originalMapping);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateProfile_AddingMapping_ReturnsOkAndPersistsNewMapping()
+    {
+        // Arrange
+        var accountId = await ApiSeeder.CreateAccountWithProfileAsync(Client, profile: TwoMappingProfile);
+        var original = (await ApiJson.ReadApiResponseAsync<ImportProfileResponse>(
+            await Client.GetAsync($"/api/v1/accounts/{accountId}/import/profile"))).Data!;
+        var update = TwoMappingProfile with
+        {
+            ColumnMappings = [.. TwoMappingProfile.ColumnMappings, new ColumnMappingRequest("Amount", "Amount")],
+        };
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/v1/accounts/{accountId}/import/profile", update, ApiJson.Options);
+        var reread = (await ApiJson.ReadApiResponseAsync<ImportProfileResponse>(
+            await Client.GetAsync($"/api/v1/accounts/{accountId}/import/profile"))).Data!;
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        reread.ColumnMappings.Should().HaveCount(3);
+        var newMapping = reread.ColumnMappings.Single(mapping => mapping.CsvColumnName == "Amount");
+        newMapping.ApplicationField.Should().Be("Amount");
+        newMapping.Id.Should().NotBeEmpty();
+        original.ColumnMappings.Select(mapping => mapping.Id).Should().NotContain(newMapping.Id);
     }
 
     [Fact]
@@ -305,6 +309,36 @@ public class ImportEndpointContractTests(IntegrationTestWebApplicationFactory fa
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         body.Success.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task UpdateProfile_RemovedAndChangedMappings_ArePersisted()
+    {
+        // Arrange
+        var accountId = await ApiSeeder.CreateAccountWithProfileAsync(Client, profile: CsvSamples.NoBalanceProfile);
+        var update = new SaveImportProfileRequest(
+            AmountType.Single,
+            false,
+            [
+                new ColumnMappingRequest("Date", "Date"),
+                new ColumnMappingRequest("Description", "Category"),
+            ],
+            "yyyy-MM-dd");
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/v1/accounts/{accountId}/import/profile", update, ApiJson.Options);
+        var updated = (await ApiJson.ReadApiResponseAsync<ImportProfileResponse>(response)).Data!;
+        var reread = (await ApiJson.ReadApiResponseAsync<ImportProfileResponse>(
+            await Client.GetAsync($"/api/v1/accounts/{accountId}/import/profile"))).Data!;
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        updated.BalanceProvided.Should().BeFalse();
+        updated.DateFormat.Should().Be("yyyy-MM-dd");
+        reread.DateFormat.Should().Be("yyyy-MM-dd");
+        reread.ColumnMappings.Should().HaveCount(2);
+        reread.ColumnMappings.Single(mapping => mapping.CsvColumnName == "Description").ApplicationField.Should().Be("Category");
+        reread.ColumnMappings.Should().NotContain(mapping => mapping.CsvColumnName == "Amount");
     }
 
     [Fact]

@@ -50,6 +50,21 @@
 //   When UpdateProfileAsync is called adding a second mapping
 //   Then the new mapping is persisted
 //
+// Scenario: Update profile adding a mapping persists it with a generated identifier
+//   Given a profile with two column mappings
+//   When UpdateProfileAsync is called with those two mappings plus a new one
+//   Then three mappings are persisted and the new mapping has a non-empty identifier
+//
+// Scenario: Update profile adding a mapping preserves existing mapping identifiers and values
+//   Given a profile with two column mappings
+//   When UpdateProfileAsync is called with those two mappings plus a new one
+//   Then the original mappings keep their identifiers and values
+//
+// Scenario: Update profile adding, removing, and changing mappings persists all changes
+//   Given a profile with three column mappings
+//   When UpdateProfileAsync adds one mapping, removes one, and changes one
+//   Then the database holds exactly the requested three mappings
+//
 // Scenario: Update profile updates existing column mapping application field
 //   Given a profile with a mapping from "Trans Desc" to "Description"
 //   When UpdateProfileAsync is called changing it to "Transaction Description" -> "Description"
@@ -561,12 +576,115 @@ public class ImportServiceTests : IDisposable
         mapping.ApplicationField.Should().Be("Amount");
     }
 
-    // Note: the scenario where UpdateProfileAsync adds a brand-new ColumnMapping to an
-    // ImportProfile that has a HasConversion<string>() enum property cannot be tested at the
-    // unit level using the EF Core in-memory provider.  When profile.ColumnMappings.Add(...)
-    // is the only pending change, the in-memory provider incorrectly raises a concurrency error
-    // during SaveChanges because it cannot correctly resolve the principal entity's row key
-    // after a value-converter round-trip.  This scenario is covered at the integration test level.
+    [Fact]
+    public async Task UpdateProfileAsync_RequestAddsMapping_PersistsNewMappingWithGeneratedIdentifier()
+    {
+        // Arrange
+        var institution = SeedInstitution("River Bank");
+        var account = SeedAccount(institution.Id, "Checking", AccountType.Checking);
+        var profile = SeedImportProfile(account.Id, AmountType.Single, balanceProvided: false, dateFormat: "MM/dd/yyyy");
+        SeedColumnMapping(profile.Id, "Trans Date", "Date");
+        SeedColumnMapping(profile.Id, "Trans Desc", "Description");
+
+        _dbContext.ChangeTracker.Clear();
+
+        var request = new SaveImportProfileRequest(
+            AmountType: AmountType.Single,
+            BalanceProvided: false,
+            ColumnMappings:
+            [
+                new ColumnMappingRequest("Trans Date", "Date"),
+                new ColumnMappingRequest("Trans Desc", "Description"),
+                new ColumnMappingRequest("Trans Amt", "Amount"),
+            ],
+            DateFormat: "MM/dd/yyyy");
+
+        // Act
+        var result = await _service.UpdateProfileAsync(account.Id, request);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var persistedMappings = await _dbContext.ColumnMappings.AsNoTracking().ToListAsync();
+        persistedMappings.Should().HaveCount(3);
+        var newMapping = persistedMappings.Single(m => m.CsvColumnName == "Trans Amt");
+        newMapping.Id.Should().NotBe(Guid.Empty);
+        newMapping.ApplicationField.Should().Be("Amount");
+        result.Data!.ColumnMappings.Should().Contain(m => m.Id == newMapping.Id && m.CsvColumnName == "Trans Amt");
+    }
+
+    [Fact]
+    public async Task UpdateProfileAsync_RequestAddsMapping_PreservesExistingMappingIdentifiersAndValues()
+    {
+        // Arrange
+        var institution = SeedInstitution("River Bank");
+        var account = SeedAccount(institution.Id, "Checking", AccountType.Checking);
+        var profile = SeedImportProfile(account.Id, AmountType.Single, balanceProvided: false, dateFormat: "MM/dd/yyyy");
+        var dateMapping = SeedColumnMapping(profile.Id, "Trans Date", "Date");
+        var descriptionMapping = SeedColumnMapping(profile.Id, "Trans Desc", "Description");
+
+        _dbContext.ChangeTracker.Clear();
+
+        var request = new SaveImportProfileRequest(
+            AmountType: AmountType.Single,
+            BalanceProvided: false,
+            ColumnMappings:
+            [
+                new ColumnMappingRequest("Trans Date", "Date"),
+                new ColumnMappingRequest("Trans Desc", "Description"),
+                new ColumnMappingRequest("Trans Amt", "Amount"),
+            ],
+            DateFormat: "MM/dd/yyyy");
+
+        // Act
+        await _service.UpdateProfileAsync(account.Id, request);
+
+        // Assert
+        var persistedMappings = await _dbContext.ColumnMappings.AsNoTracking().ToListAsync();
+        var persistedDate = persistedMappings.Single(m => m.Id == dateMapping.Id);
+        persistedDate.CsvColumnName.Should().Be("Trans Date");
+        persistedDate.ApplicationField.Should().Be("Date");
+        var persistedDescription = persistedMappings.Single(m => m.Id == descriptionMapping.Id);
+        persistedDescription.CsvColumnName.Should().Be("Trans Desc");
+        persistedDescription.ApplicationField.Should().Be("Description");
+    }
+
+    [Fact]
+    public async Task UpdateProfileAsync_RequestAddsRemovesAndChangesMappings_PersistsAllChanges()
+    {
+        // Arrange
+        var institution = SeedInstitution("River Bank");
+        var account = SeedAccount(institution.Id, "Checking", AccountType.Checking);
+        var profile = SeedImportProfile(account.Id, AmountType.Single, balanceProvided: false, dateFormat: "MM/dd/yyyy");
+        var dateMapping = SeedColumnMapping(profile.Id, "Trans Date", "Date");
+        SeedColumnMapping(profile.Id, "Trans Desc", "Description");
+        SeedColumnMapping(profile.Id, "Trans Amt", "Amount");
+
+        _dbContext.ChangeTracker.Clear();
+
+        var request = new SaveImportProfileRequest(
+            AmountType: AmountType.Single,
+            BalanceProvided: false,
+            ColumnMappings:
+            [
+                new ColumnMappingRequest("Trans Date", "Category"),
+                new ColumnMappingRequest("Trans Desc", "Description"),
+                new ColumnMappingRequest("Trans Memo", "Memo"),
+            ],
+            DateFormat: "MM/dd/yyyy");
+
+        // Act
+        var result = await _service.UpdateProfileAsync(account.Id, request);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var persistedMappings = await _dbContext.ColumnMappings.AsNoTracking().ToListAsync();
+        persistedMappings.Should().HaveCount(3);
+        persistedMappings.Should().NotContain(m => m.CsvColumnName == "Trans Amt");
+        persistedMappings.Single(m => m.Id == dateMapping.Id).ApplicationField.Should().Be("Category");
+        var addedMapping = persistedMappings.Single(m => m.CsvColumnName == "Trans Memo");
+        addedMapping.ApplicationField.Should().Be("Memo");
+        addedMapping.Id.Should().NotBe(Guid.Empty);
+    }
 
     [Fact]
     public async Task UpdateProfileAsync_IdenticalData_ReturnsSuccess()
