@@ -301,7 +301,6 @@ public class ImportService(
                 {
                     ApplicationField = incoming.ApplicationField,
                     CsvColumnName = incoming.CsvColumnName,
-                    Id = Guid.NewGuid(),
                     ImportProfileId = profile.Id,
                 });
             }
